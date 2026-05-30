@@ -56,6 +56,11 @@ type PostUpdateOptions = {
   json?: boolean;
 };
 
+type PostStatusOptions = {
+  status: "draft" | "scheduled";
+  json?: boolean;
+};
+
 function resolveConfigPath(): string {
   const home = process.env.HOME;
   if (!home) {
@@ -401,6 +406,33 @@ postCommand
       }
 
       printOutput([response.post]);
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+postCommand
+  .command("status")
+  .description("Toggle a post between draft and scheduled")
+  .argument("<postId>", "Post ID")
+  .requiredOption("--status <status>", "Target status: draft or scheduled")
+  .option("--json", "Output JSON")
+  .action(async (postId: string, options: PostStatusOptions) => {
+    try {
+      const rootOptions = program.opts<RootOptions>();
+      const client = await createClient(rootOptions);
+      const response = await client.updatePost(postId, {
+        status: options.status,
+      });
+
+      if (options.json) {
+        console.log(JSON.stringify(response, null, 2));
+        return;
+      }
+
+      console.log(
+        `Post ${postId} moved to ${response.post.status}`,
+      );
     } catch (error) {
       handleError(error);
     }

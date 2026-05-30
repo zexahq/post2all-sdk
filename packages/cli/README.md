@@ -81,12 +81,20 @@ post2all post update post_abc \
 # cancel a scheduled post
 post2all post cancel post_abc
 
+# toggle post status
+post2all post status post_abc --status scheduled
+
 # delete a post
 post2all post delete post_abc
 
 # return raw JSON
 post2all posts --json
 ```
+
+## Documentation
+
+- **[SKILL.md](./SKILL.md)** — Complete reference for AI agents with patterns and examples
+- **[API Reference](https://www.post2all.com/docs/api-reference)** — Full REST API documentation
 
 ## Publish (maintainers)
 
