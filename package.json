@@ -1,0 +1,30 @@
+{
+  "name": "post2all-sdk",
+  "version": "0.0.0",
+  "private": true,
+  "description": "post2all SDK and CLI — open-source tooling for the post2all API",
+  "author": "post2all",
+  "license": "MIT",
+  "homepage": "https://www.post2all.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/post2all/post2all-sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/post2all/post2all-sdk/issues"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint --fix .",
+    "format": "oxfmt --check .",
+    "format:fix": "oxfmt .",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "oxfmt": "^0.43.0",
+    "oxlint": "^1.58.0",
+    "turbo": "^2"
+  },
+  "packageManager": "pnpm@10.32.1"
+}

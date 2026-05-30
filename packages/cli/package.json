@@ -1,0 +1,49 @@
+{
+  "name": "post2all",
+  "version": "0.1.0",
+  "private": false,
+  "description": "post2all CLI",
+  "author": "post2all",
+  "license": "MIT",
+  "homepage": "https://www.post2all.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/post2all/post2all-sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/post2all/post2all-sdk/issues"
+  },
+  "keywords": [
+    "post2all",
+    "cli",
+    "social-media",
+    "scheduler"
+  ],
+  "type": "module",
+  "bin": {
+    "post2all": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "prepublishOnly": "pnpm --filter @post2all/sdk build && pnpm --filter ./packages/cli typecheck && pnpm --filter ./packages/cli build"
+  },
+  "dependencies": {
+    "@post2all/sdk": "workspace:^0.1.0",
+    "commander": "^14.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}
