@@ -7,12 +7,12 @@ allowed-tools: Bash(post2all:*)
 ## Install
 
 ```bash
-pnpm add -g post2all
+pnpm add -g @post2all/cli
 # or
-npm install -g post2all
+npm install -g @post2all/cli
 ```
 
-npm: https://www.npmjs.com/package/post2all
+npm: https://www.npmjs.com/package/@post2all/cli
 docs: https://www.post2all.com/docs/api-reference
 
 ---

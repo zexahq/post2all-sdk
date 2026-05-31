@@ -5,7 +5,7 @@ Official post2all command line interface.
 ## Install
 
 ```bash
-pnpm add -g post2all
+pnpm add -g @post2all/cli
 ```
 
 ## Authentication

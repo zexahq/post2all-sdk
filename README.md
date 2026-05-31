@@ -7,14 +7,14 @@ Open-source TypeScript SDK and CLI for the [post2all](https://www.post2all.com) 
 | Package                           | Description                                             |
 | --------------------------------- | ------------------------------------------------------- |
 | [`@post2all/sdk`](./packages/sdk) | TypeScript SDK — typed client for the post2all REST API |
-| [`post2all`](./packages/cli)      | CLI tool — manage posts and accounts from the terminal  |
+| [`@post2all/cli`](./packages/cli)  | CLI tool — manage posts and accounts from the terminal  |
 
 ## Quick start
 
 ### CLI
 
 ```bash
-pnpm add -g post2all
+pnpm add -g @post2all/cli
 post2all config set-key amp_xxx
 post2all accounts
 ```

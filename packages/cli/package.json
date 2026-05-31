@@ -1,5 +1,5 @@
 {
-  "name": "post2all",
+  "name": "@post2all/cli",
   "version": "0.1.0",
   "private": false,
   "description": "post2all CLI",

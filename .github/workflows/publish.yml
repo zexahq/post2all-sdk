@@ -9,7 +9,7 @@ on:
         type: boolean
         default: true
       publish_cli:
-        description: "Publish post2all CLI"
+        description: "Publish @post2all/cli"
         required: true
         type: boolean
         default: true
@@ -19,7 +19,7 @@ on:
         type: string
         default: ""
       version_cli:
-        description: "Version bump for post2all CLI (e.g. patch, minor, 0.2.0)"
+        description: "Version bump for @post2all/cli (e.g. patch, minor, 0.2.0)"
         required: false
         type: string
         default: ""
@@ -96,7 +96,7 @@ jobs:
       - name: Build SDK (workspace dep)
         run: pnpm --filter @post2all/sdk build
 
-      - name: Publish post2all CLI
+      - name: Publish @post2all/cli
         run: pnpm --filter ./packages/cli publish --access public --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
