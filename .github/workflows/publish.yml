@@ -1,0 +1,102 @@
+name: Publish to npm
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_sdk:
+        description: "Publish @post2all/sdk"
+        required: true
+        type: boolean
+        default: true
+      publish_cli:
+        description: "Publish post2all CLI"
+        required: true
+        type: boolean
+        default: true
+      version_sdk:
+        description: "Version bump for @post2all/sdk (e.g. patch, minor, 0.2.0)"
+        required: false
+        type: string
+        default: ""
+      version_cli:
+        description: "Version bump for post2all CLI (e.g. patch, minor, 0.2.0)"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish-sdk:
+    if: inputs.publish_sdk
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Bump version
+        if: inputs.version_sdk != ''
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          pnpm --filter @post2all/sdk exec npm version ${{ inputs.version_sdk }} --no-git-tag-version
+          VERSION=$(node -p "require('./packages/sdk/package.json').version")
+          git add packages/sdk/package.json
+          git commit -m "chore(sdk): bump to v$VERSION"
+          git push
+
+      - name: Publish @post2all/sdk
+        run: pnpm --filter @post2all/sdk publish --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-cli:
+    needs: publish-sdk
+    if: always() && inputs.publish_cli && (needs.publish-sdk.result == 'success' || needs.publish-sdk.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Bump version
+        if: inputs.version_cli != ''
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          pnpm --filter ./packages/cli exec npm version ${{ inputs.version_cli }} --no-git-tag-version
+          VERSION=$(node -p "require('./packages/cli/package.json').version")
+          git add packages/cli/package.json
+          git commit -m "chore(cli): bump to v$VERSION"
+          git push
+
+      - name: Build SDK (workspace dep)
+        run: pnpm --filter @post2all/sdk build
+
+      - name: Publish post2all CLI
+        run: pnpm --filter ./packages/cli publish --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
