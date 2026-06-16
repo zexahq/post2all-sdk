@@ -73,8 +73,8 @@ export class Post2allClient {
       body.append("scheduledAt", input.scheduledAt);
     }
 
-    if (input.accountSettings) {
-      body.append("accountSettings", JSON.stringify(input.accountSettings));
+    if (input.platformSettings) {
+      body.append("platformSettings", JSON.stringify(input.platformSettings));
     }
 
     if (input.mediaPaths) {
@@ -164,8 +164,8 @@ export class Post2allClient {
     if (input.scheduledAt !== undefined) {
       body.scheduledAt = input.scheduledAt;
     }
-    if (input.accountSettings !== undefined) {
-      body.accountSettings = input.accountSettings;
+    if (input.platformSettings !== undefined) {
+      body.platformSettings = input.platformSettings;
     }
 
     const response = await this.request(

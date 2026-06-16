@@ -1,7 +1,6 @@
 export { Post2allClient, type Post2allClientOptions } from "./client.js";
 export { Post2allApiError, type Post2allApiErrorOptions } from "./errors.js";
 export type {
-  AccountSettings,
   CreatePostInput,
   CreatePostResponse,
   GetPostResponse,
@@ -9,6 +8,7 @@ export type {
   ListPostsInput,
   ListPostsResponse,
   Platform,
+  PlatformSettings,
   PostStatus,
   PostType,
   SocialAccount,

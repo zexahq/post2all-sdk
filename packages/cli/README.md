@@ -57,7 +57,14 @@ post2all post create \
   --accounts acc_1,acc_2 \
   --content "Hello from post2all CLI" \
   --status scheduled \
-  --scheduled-at "2026-03-10T09:00:00Z"
+  --scheduled-at "2026-03-10T09:00:00+05:30"
+
+# customize captions by platform
+post2all post create \
+  --type text \
+  --accounts acc_twitter,acc_threads \
+  --content "Long main caption for platforms with more room" \
+  --platform-settings '{"threads":{"caption":"Short Threads version"}}'
 
 # save as draft
 post2all post create \
@@ -76,7 +83,7 @@ post2all post create \
 # update a post
 post2all post update post_abc \
   --content "Updated content" \
-  --scheduled-at "2026-03-11T10:00:00Z"
+  --scheduled-at "2026-03-11T10:00:00+05:30"
 
 # cancel a scheduled post
 post2all post cancel post_abc

@@ -28,6 +28,26 @@ post2all config whoami   # verify it works
 
 **Rule 2 — Image/video posts need `--media`.** Local file paths work directly (no pre-upload needed).
 
+**Rule 3 — Scheduled times must include a timezone.** `--scheduled-at` must be an ISO 8601 date-time with `Z` or an explicit offset. Never use timezone-less values like `2026-06-20T09:00:00`.
+
+If the user says a local time, interpret it in the user's local timezone unless they explicitly name another timezone. Check the current local timezone before scheduling:
+
+```bash
+date +"%Y-%m-%d %H:%M:%S %Z (%z)"
+```
+
+Examples:
+
+```bash
+# 9:00 AM in India Standard Time
+--scheduled-at "2026-06-20T09:00:00+05:30"
+
+# Same instant in UTC
+--scheduled-at "2026-06-20T03:30:00Z"
+```
+
+If the user's timezone is unknown or the request is ambiguous, ask one clarifying question before scheduling.
+
 ---
 
 ## Authentication
@@ -96,7 +116,7 @@ post2all post create \
   --accounts acc_1,acc_2 \
   --content "Scheduled post" \
   --status scheduled \
-  --scheduled-at "2026-06-15T09:00:00Z"
+  --scheduled-at "2026-06-15T09:00:00+05:30"
 
 # Save as draft
 post2all post create \
@@ -119,12 +139,12 @@ post2all post create \
   --content "My video" \
   --media ./video.mp4
 
-# Multi-account with per-account settings
+# Platform-specific settings
 post2all post create \
   --type text \
   --accounts acc_1,acc_2 \
   --content "Platform-specific post" \
-  --account-settings '{"acc_1":{"caption":"Twitter version"},"acc_2":{"title":"YouTube title"}}'
+  --platform-settings '{"twitter":{"caption":"Short Twitter/X version"},"youtube":{"title":"YouTube title"}}'
 
 # Machine-readable output
 post2all post create --type text --accounts acc_1 --content "Test" --json
@@ -137,15 +157,15 @@ post2all post create --type text --accounts acc_1 --content "Test" --json
 | `--accounts` | Yes | Comma-separated IDs | From `post2all accounts` |
 | `--content` | No | String | Required for text posts |
 | `--status` | No | `publish_now`, `scheduled`, `draft` | Default: publish immediately |
-| `--scheduled-at` | No | ISO 8601 date | Required for `--status scheduled` |
+| `--scheduled-at` | No | ISO 8601 date-time with `Z` or timezone offset | Required for `--status scheduled`; never omit the timezone |
 | `--media` | No | One or more file paths | Required for image/video posts |
-| `--account-settings` | No | JSON object | Per-account content overrides |
+| `--platform-settings` | No | JSON object | Platform-specific content overrides |
 | `--json` | No | Flag | Output as JSON |
 
 ### Read Posts
 
 ```bash
-# Get full post details (content, status, per-account publish results)
+# Get full post details (content, status, per-platform/account publish results)
 post2all post get <postId>
 post2all post get <postId> --json
 
@@ -174,7 +194,7 @@ post2all posts --page 1 --limit 20
 post2all post update <postId> --content "Updated text"
 
 # Change schedule
-post2all post update <postId> --scheduled-at "2026-06-20T10:00:00Z"
+post2all post update <postId> --scheduled-at "2026-06-20T10:00:00+05:30"
 
 # Change target accounts
 post2all post update <postId> --accounts acc_1,acc_2
@@ -274,7 +294,7 @@ post2all post get post_abc
 # 3. Update and schedule
 post2all post update post_abc --content "Final version"
 post2all post status post_abc --status scheduled \
-  --scheduled-at "2026-06-20T09:00:00Z"
+  --scheduled-at "2026-06-20T09:00:00+05:30"
 ```
 
 Wait — `post status` only takes `--status`, not `--scheduled-at`. For scheduling a draft, use `post update`.
@@ -283,7 +303,7 @@ Wait — `post status` only takes `--status`, not `--scheduled-at`. For scheduli
 # Correct: schedule a draft
 post2all post update post_abc \
   --status scheduled \
-  --scheduled-at "2026-06-20T09:00:00Z"
+  --scheduled-at "2026-06-20T09:00:00+05:30"
 ```
 
 ### Pattern 4: Cancel a Scheduled Post
@@ -311,9 +331,9 @@ post2all post create \
 #!/bin/bash
 
 POSTS=(
-  "Morning update|2026-06-20T08:00:00Z"
-  "Afternoon tip|2026-06-20T14:00:00Z"
-  "Evening recap|2026-06-20T20:00:00Z"
+  "Morning update|2026-06-20T08:00:00+05:30"
+  "Afternoon tip|2026-06-20T14:00:00+05:30"
+  "Evening recap|2026-06-20T20:00:00+05:30"
 )
 
 for entry in "${POSTS[@]}"; do
@@ -388,7 +408,7 @@ post2all post create --type text --accounts acc_1 --content "Hello"
 
 # Schedule
 post2all post create --type text --accounts acc_1 --content "Later" \
-  --status scheduled --scheduled-at "2026-06-20T09:00:00Z"
+  --status scheduled --scheduled-at "2026-06-20T09:00:00+05:30"
 
 # Draft
 post2all post create --type text --accounts acc_1 --content "WIP" --status draft

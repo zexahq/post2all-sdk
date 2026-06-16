@@ -161,7 +161,7 @@ export type UpdatePostResponse = z.infer<typeof updatePostResponseSchema>;
 export type DeletePostResponse = z.infer<typeof deletePostResponseSchema>;
 export type CancelPostResponse = z.infer<typeof cancelPostResponseSchema>;
 
-export type AccountSettings = Record<string, Record<string, unknown>>;
+export type PlatformSettings = Record<string, Record<string, unknown>>;
 
 export type CreatePostInput = {
   type: PostType;
@@ -169,7 +169,7 @@ export type CreatePostInput = {
   content?: string;
   status?: "draft" | "scheduled";
   scheduledAt?: string;
-  accountSettings?: AccountSettings;
+  platformSettings?: PlatformSettings;
   mediaPaths?: string[];
 };
 
@@ -179,7 +179,7 @@ export type UpdatePostInput = {
   socialAccountIds?: string[];
   status?: "draft" | "scheduled";
   scheduledAt?: string;
-  accountSettings?: AccountSettings;
+  platformSettings?: PlatformSettings;
 };
 
 export type ListPostsInput = {

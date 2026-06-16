@@ -18,6 +18,19 @@ const client = new Post2allClient({
 });
 
 const accounts = await client.listAccounts();
+
+await client.createPost({
+  type: "text",
+  socialAccountIds: ["acc_twitter", "acc_threads"],
+  content: "Long main caption for platforms with more room",
+  status: "scheduled",
+  scheduledAt: "2026-03-10T09:00:00+05:30",
+  platformSettings: {
+    threads: {
+      caption: "Short Threads version",
+    },
+  },
+});
 ```
 
 ## API
