@@ -29,10 +29,10 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "prepublishOnly": "pnpm --filter @post2all/sdk build && pnpm --filter ./packages/cli typecheck && pnpm --filter ./packages/cli build"
+    "prepublishOnly": "pnpm --filter @post2all/sdk build && pnpm --filter @post2all/cli typecheck && pnpm --filter @post2all/cli build"
   },
   "dependencies": {
-    "@post2all/sdk": "workspace:^0.1.1",
+    "@post2all/sdk": "workspace:^0.1.2",
     "commander": "^14.0.1"
   },
   "devDependencies": {
