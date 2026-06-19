@@ -384,7 +384,7 @@ echo "Post created successfully"
 | `EXPIRED_API_KEY` | 401 | Key has expired | Create a new key in dashboard Settings |
 | `RATE_LIMITED` | 429 | Too many requests | Wait and retry |
 | `FORBIDDEN` | 403 | Key doesn't have org access | Check key belongs to current workspace |
-| `PLAN_UPGRADE_REQUIRED` | 403 | Plan doesn't include API access | Upgrade plan in dashboard |
+| `PLAN_UPGRADE_REQUIRED` | 403 | No active subscription or monthly post limit reached | Check subscription status in dashboard |
 | `INVALID_REQUEST` | 400 | Missing fields or bad body | Check `--help` for required flags |
 | `INVALID_ACCOUNTS` | 400 | Account ID doesn't belong to org | Run `post2all accounts` for valid IDs |
 | `UNSUPPORTED_MEDIA` | 400 | File type not image/* or video/* | Check supported formats above |
