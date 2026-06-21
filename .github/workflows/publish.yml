@@ -60,6 +60,9 @@ jobs:
           git commit -m "chore(sdk): bump to v$VERSION"
           git push
 
+      - name: Build SDK
+        run: pnpm --filter @post2all/sdk build
+
       - name: Publish @post2all/sdk
         run: pnpm --filter @post2all/sdk publish --access public --no-git-checks
 

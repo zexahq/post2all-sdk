@@ -34,7 +34,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "prepublishOnly": "pnpm run typecheck && pnpm run build"
+    "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
     "zod": "^4.2.1"
