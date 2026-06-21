@@ -240,6 +240,8 @@ post2all post delete <postId>
 
 Content is validated server-side. Exceeding limits returns an error with the specific platform that failed.
 
+Do not limit every platform to the shortest platform's character limit. Keep the main caption appropriate for platforms that support it, and use `--platform-settings` with a shorter `caption` only for constrained platforms such as X or Threads.
+
 ---
 
 ## Supported Media Formats
