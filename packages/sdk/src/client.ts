@@ -1,5 +1,5 @@
-import { readFile } from "node:fs/promises";
-import { basename } from "node:path";
+import { readFile, stat } from "node:fs/promises";
+import { basename, extname } from "node:path";
 
 import { z } from "zod";
 
@@ -23,9 +23,32 @@ import {
   deletePostResponseSchema,
   type CancelPostResponse,
   cancelPostResponseSchema,
+  type ConfirmMediaUploadResponse,
+  confirmMediaUploadResponseSchema,
+  type CreateMediaUploadInput,
+  type CreateMediaUploadResponse,
+  createMediaUploadResponseSchema,
+  createMediaUploadInputSchema,
+  createPostInputSchema,
+  listPostsInputSchema,
+  updatePostInputSchema,
 } from "./types.js";
 
 const defaultBaseUrl = "https://www.post2all.com/api/v1";
+
+const mediaContentTypes: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".svg": "image/svg+xml",
+  ".mp4": "video/mp4",
+  ".webm": "video/webm",
+  ".mov": "video/quicktime",
+  ".avi": "video/x-msvideo",
+  ".mkv": "video/x-matroska",
+};
 
 export type Post2allClientOptions = {
   apiKey: string;
@@ -50,55 +73,91 @@ export class Post2allClient {
   }
 
   public async createPost(input: CreatePostInput): Promise<CreatePostResponse> {
-    if (input.socialAccountIds.length === 0) {
-      throw new Post2allApiError("socialAccountIds must not be empty", {
-        status: 400,
-        code: "INVALID_REQUEST",
-      });
-    }
+    input = createPostInputSchema.parse(input);
 
-    const body = new FormData();
-    body.append("type", input.type);
-    body.append("socialAccountIds", JSON.stringify(input.socialAccountIds));
-
-    if (input.content) {
-      body.append("content", input.content);
-    }
-
-    if (input.status) {
-      body.append("status", input.status);
-    }
-
-    if (input.scheduledAt) {
-      body.append("scheduledAt", input.scheduledAt);
-    }
-
-    if (input.platformSettings) {
-      body.append("platformSettings", JSON.stringify(input.platformSettings));
-    }
-
-    if (input.mediaPaths) {
-      await Promise.all(
-        input.mediaPaths.map(async (mediaPath) => {
-          const data = await readFile(mediaPath);
-          const filename = basename(mediaPath);
-          const blob = new Blob([data]);
-          body.append("media", blob, filename);
-        }),
-      );
-    }
+    const body = {
+      type: input.type,
+      socialAccountIds: input.socialAccountIds,
+      ...(input.content !== undefined ? { content: input.content } : {}),
+      ...(input.status !== undefined ? { status: input.status } : {}),
+      ...(input.scheduledAt !== undefined
+        ? { scheduledAt: input.scheduledAt }
+        : {}),
+      ...(input.platformSettings !== undefined
+        ? { platformSettings: input.platformSettings }
+        : {}),
+      ...(input.mediaIds !== undefined ? { mediaIds: input.mediaIds } : {}),
+    };
 
     const response = await this.request("/posts", {
       method: "POST",
-      body,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     });
 
     return this.parseJson(response, createPostResponseSchema);
   }
 
+  public async createMediaUpload(
+    input: CreateMediaUploadInput,
+  ): Promise<CreateMediaUploadResponse> {
+    input = createMediaUploadInputSchema.parse(input);
+    const response = await this.request("/media/uploads", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    return this.parseJson(response, createMediaUploadResponseSchema);
+  }
+
+  public async confirmMediaUpload(
+    mediaId: string,
+  ): Promise<ConfirmMediaUploadResponse> {
+    const response = await this.request(
+      `/media/uploads/${encodeURIComponent(mediaId)}/confirm`,
+      { method: "POST" },
+    );
+    return this.parseJson(response, confirmMediaUploadResponseSchema);
+  }
+
+  public async uploadMedia(path: string): Promise<ConfirmMediaUploadResponse> {
+    const contentType = mediaContentTypes[extname(path).toLowerCase()];
+    if (!contentType) {
+      throw new Post2allApiError(`Unsupported media file: ${path}`, {
+        status: 400,
+        code: "UNSUPPORTED_MEDIA",
+      });
+    }
+    const file = await stat(path);
+    if (!file.isFile()) {
+      throw new Post2allApiError(`Media path is not a file: ${path}`, {
+        status: 400,
+        code: "INVALID_REQUEST",
+      });
+    }
+    const pending = await this.createMediaUpload({
+      filename: basename(path),
+      contentType,
+      fileSize: file.size,
+    });
+    const response = await this.fetchImplementation(pending.upload.uploadUrl, {
+      method: "PUT",
+      headers: { "Content-Type": contentType },
+      body: await readFile(path),
+    });
+    if (!response.ok) {
+      throw new Post2allApiError(
+        `Media upload failed with status ${response.status}`,
+        { status: response.status, code: "MEDIA_UPLOAD_FAILED" },
+      );
+    }
+    return this.confirmMediaUpload(pending.upload.mediaId);
+  }
+
   public async listPosts(
     input: ListPostsInput = {},
   ): Promise<ListPostsResponse> {
+    input = listPostsInputSchema.parse(input);
     const query = new URLSearchParams();
 
     if (input.page !== undefined) {
@@ -147,6 +206,7 @@ export class Post2allClient {
       });
     }
 
+    input = updatePostInputSchema.parse(input);
     const body: Record<string, unknown> = {};
 
     if (input.type !== undefined) {

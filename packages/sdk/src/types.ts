@@ -20,6 +20,65 @@ export const postStatusSchema = z.enum([
   "failed",
 ]);
 
+export const platformSettingsSchema = z.record(
+  z.string(),
+  z.record(z.string(), z.unknown()),
+);
+
+export const createPostInputSchema = z
+  .object({
+    type: postTypeSchema,
+    socialAccountIds: z.array(z.string().min(1)).min(1),
+    content: z.string().optional(),
+    status: z.enum(["draft", "scheduled"]).optional(),
+    scheduledAt: z.string().optional(),
+    platformSettings: platformSettingsSchema.optional(),
+    mediaIds: z.array(z.string().min(1)).default([]),
+  })
+  .superRefine((value, ctx) => {
+    if (value.type === "text" && !value.content) {
+      ctx.addIssue({ code: "custom", path: ["content"], message: "Required" });
+    }
+    if (value.type !== "text" && value.mediaIds.length === 0) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["mediaIds"],
+        message: `At least one media ID is required for ${value.type} posts`,
+      });
+    }
+    if (value.type === "text" && value.mediaIds.length > 0) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["mediaIds"],
+        message: "Text posts cannot include media IDs",
+      });
+    }
+  });
+
+export const updatePostInputSchema = z.object({
+  type: postTypeSchema.optional(),
+  content: z.string().optional(),
+  socialAccountIds: z.array(z.string().min(1)).min(1).optional(),
+  status: z.enum(["draft", "scheduled"]).optional(),
+  scheduledAt: z.string().nullable().optional(),
+  platformSettings: platformSettingsSchema.optional(),
+});
+
+export const listPostsInputSchema = z.object({
+  page: z.number().int().min(1).optional(),
+  limit: z.number().int().min(1).max(100).optional(),
+  status: postStatusSchema.optional(),
+  type: postTypeSchema.optional(),
+});
+
+export const createMediaUploadInputSchema = z.object({
+  filename: z.string().min(1),
+  contentType: z
+    .string()
+    .regex(/^(image|video)\/[a-zA-Z0-9.+-]+$/, "Must be image/* or video/*"),
+  fileSize: z.number().int().positive(),
+});
+
 export const socialAccountSchema = z.object({
   id: z.string(),
   platform: platformSchema.or(z.string()),
@@ -148,6 +207,25 @@ export const cancelPostResponseSchema = z.object({
   }),
 });
 
+export const createMediaUploadResponseSchema = z.object({
+  upload: z.object({
+    mediaId: z.string(),
+    uploadUrl: z.string(),
+    objectKey: z.string(),
+    publicUrl: z.string(),
+    expiresIn: z.number(),
+  }),
+});
+
+export const confirmMediaUploadResponseSchema = z.object({
+  media: z.object({
+    id: z.string(),
+    type: z.enum(["image", "video"]),
+    sizeBytes: z.number(),
+    originalFileName: z.string().nullable(),
+  }),
+});
+
 export type Platform = z.infer<typeof platformSchema>;
 export type PostType = z.infer<typeof postTypeSchema>;
 export type PostStatus = z.infer<typeof postStatusSchema>;
@@ -160,34 +238,20 @@ export type CreatePostResponse = z.infer<typeof createPostResponseSchema>;
 export type UpdatePostResponse = z.infer<typeof updatePostResponseSchema>;
 export type DeletePostResponse = z.infer<typeof deletePostResponseSchema>;
 export type CancelPostResponse = z.infer<typeof cancelPostResponseSchema>;
+export type CreateMediaUploadResponse = z.infer<
+  typeof createMediaUploadResponseSchema
+>;
+export type ConfirmMediaUploadResponse = z.infer<
+  typeof confirmMediaUploadResponseSchema
+>;
 
-export type PlatformSettings = Record<string, Record<string, unknown>>;
-
-export type CreatePostInput = {
-  type: PostType;
-  socialAccountIds: string[];
-  content?: string;
-  status?: "draft" | "scheduled";
-  scheduledAt?: string;
-  platformSettings?: PlatformSettings;
-  mediaPaths?: string[];
-};
-
-export type UpdatePostInput = {
-  type?: PostType;
-  content?: string;
-  socialAccountIds?: string[];
-  status?: "draft" | "scheduled";
-  scheduledAt?: string;
-  platformSettings?: PlatformSettings;
-};
-
-export type ListPostsInput = {
-  page?: number;
-  limit?: number;
-  status?: PostStatus;
-  type?: PostType;
-};
+export type PlatformSettings = z.infer<typeof platformSettingsSchema>;
+export type CreatePostInput = z.input<typeof createPostInputSchema>;
+export type CreateMediaUploadInput = z.input<
+  typeof createMediaUploadInputSchema
+>;
+export type UpdatePostInput = z.input<typeof updatePostInputSchema>;
+export type ListPostsInput = z.input<typeof listPostsInputSchema>;
 
 export type ApiErrorBody = {
   error?: {

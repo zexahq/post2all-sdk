@@ -26,7 +26,7 @@ post2all config set-key amp_xxx
 post2all config whoami   # verify it works
 ```
 
-**Rule 2 — Image/video posts need `--media`.** Local file paths work directly (no pre-upload needed).
+**Rule 2 — Upload media first.** Run `media upload`, then create the post with the returned IDs via `--media-ids`.
 
 **Rule 3 — Scheduled times must include a timezone.** `--scheduled-at` must be an ISO 8601 date-time with `Z` or an explicit offset. Never use timezone-less values like `2026-06-20T09:00:00`.
 
@@ -125,19 +125,21 @@ post2all post create \
   --content "Work in progress" \
   --status draft
 
-# Image post (local files — no pre-upload needed)
+# Upload images, then create the post
+post2all media upload ./photo1.jpg ./photo2.jpg --json
 post2all post create \
   --type image \
   --accounts acc_1 \
   --content "Check this out" \
-  --media ./photo1.jpg ./photo2.jpg
+  --media-ids <mediaId1>,<mediaId2>
 
-# Video post
+# Upload a video, then create the post
+post2all media upload ./video.mp4 --json
 post2all post create \
   --type video \
   --accounts acc_1 \
   --content "My video" \
-  --media ./video.mp4
+  --media-ids <mediaId>
 
 # Platform-specific settings
 post2all post create \
@@ -158,7 +160,7 @@ post2all post create --type text --accounts acc_1 --content "Test" --json
 | `--content` | No | String | Required for text posts |
 | `--status` | No | `publish_now`, `scheduled`, `draft` | Default: publish immediately |
 | `--scheduled-at` | No | ISO 8601 date-time with `Z` or timezone offset | Required for `--status scheduled`; never omit the timezone |
-| `--media` | No | One or more file paths | Required for image/video posts |
+| `--media-ids` | No | Comma-separated media IDs | Returned by `post2all media upload` |
 | `--platform-settings` | No | JSON object | Platform-specific content overrides |
 | `--json` | No | Flag | Output as JSON |
 
@@ -228,7 +230,7 @@ post2all post delete <postId>
 ## Platform Character Limits
 
 | Platform    | Max chars |
-|-------------|-----------|
+| ----------- | --------- |
 | Twitter / X | 280       |
 | LinkedIn    | 3,000     |
 | Instagram   | 2,200     |
@@ -242,12 +244,12 @@ Content is validated server-side. Exceeding limits returns an error with the spe
 
 ## Supported Media Formats
 
-| Type  | Formats                                          |
-|-------|--------------------------------------------------|
-| Image | jpg, jpeg, png, gif, webp, svg                   |
-| Video | mp4, webm, mov, avi, mkv                          |
+| Type  | Formats                        |
+| ----- | ------------------------------ |
+| Image | jpg, jpeg, png, gif, webp, svg |
+| Video | mp4, webm, mov, avi, mkv       |
 
-Use `--media` with local file paths. Files are uploaded inline — no separate upload step required.
+Run `post2all media upload <paths...> --json`, then pass the returned IDs with `--media-ids`. Post creation does not accept local paths or file bytes.
 
 ---
 
@@ -322,7 +324,7 @@ post2all post create \
   --type image \
   --accounts acc_1 \
   --content "Photo gallery" \
-  --media ./photo1.jpg ./photo2.jpg ./photo3.jpg
+  --media-ids <mediaId1>,<mediaId2>,<mediaId3>
 ```
 
 ### Pattern 6: Scripted Batch Posts
@@ -369,27 +371,27 @@ echo "Post created successfully"
 
 ## Exit Codes
 
-| Code | Meaning |
-|------|---------|
-| 0    | Success |
+| Code | Meaning                                             |
+| ---- | --------------------------------------------------- |
+| 0    | Success                                             |
 | 1    | Error (API failure, auth failure, or invalid input) |
 
 ---
 
 ## Error Reference
 
-| API Error Code | HTTP | Cause | Fix |
-|----------------|------|-------|-----|
-| `INVALID_API_KEY` | 401 | Missing or invalid `x-api-key` | Run `post2all config set-key` with valid key |
-| `EXPIRED_API_KEY` | 401 | Key has expired | Create a new key in dashboard Settings |
-| `RATE_LIMITED` | 429 | Too many requests | Wait and retry |
-| `FORBIDDEN` | 403 | Key doesn't have org access | Check key belongs to current workspace |
-| `PLAN_UPGRADE_REQUIRED` | 403 | No active subscription or monthly post limit reached | Check subscription status in dashboard |
-| `INVALID_REQUEST` | 400 | Missing fields or bad body | Check `--help` for required flags |
-| `INVALID_ACCOUNTS` | 400 | Account ID doesn't belong to org | Run `post2all accounts` for valid IDs |
-| `UNSUPPORTED_MEDIA` | 400 | File type not image/* or video/* | Check supported formats above |
-| `POST_NOT_FOUND` | 404 | Post ID not found | Check ID from `post2all posts` |
-| `INTERNAL_ERROR` | 500 | Server error | Retry or contact support |
+| API Error Code          | HTTP | Cause                                                | Fix                                          |
+| ----------------------- | ---- | ---------------------------------------------------- | -------------------------------------------- |
+| `INVALID_API_KEY`       | 401  | Missing or invalid `x-api-key`                       | Run `post2all config set-key` with valid key |
+| `EXPIRED_API_KEY`       | 401  | Key has expired                                      | Create a new key in dashboard Settings       |
+| `RATE_LIMITED`          | 429  | Too many requests                                    | Wait and retry                               |
+| `FORBIDDEN`             | 403  | Key doesn't have org access                          | Check key belongs to current workspace       |
+| `PLAN_UPGRADE_REQUIRED` | 403  | No active subscription or monthly post limit reached | Check subscription status in dashboard       |
+| `INVALID_REQUEST`       | 400  | Missing fields or bad body                           | Check `--help` for required flags            |
+| `INVALID_ACCOUNTS`      | 400  | Account ID doesn't belong to org                     | Run `post2all accounts` for valid IDs        |
+| `UNSUPPORTED_MEDIA`     | 400  | File type not image/_ or video/_                     | Check supported formats above                |
+| `POST_NOT_FOUND`        | 404  | Post ID not found                                    | Check ID from `post2all posts`               |
+| `INTERNAL_ERROR`        | 500  | Server error                                         | Retry or contact support                     |
 
 ---
 
@@ -413,9 +415,9 @@ post2all post create --type text --accounts acc_1 --content "Later" \
 # Draft
 post2all post create --type text --accounts acc_1 --content "WIP" --status draft
 
-# With media
+# With previously uploaded media
 post2all post create --type image --accounts acc_1 \
-  --content "Photo" --media ./photo.jpg
+  --content "Photo" --media-ids <mediaId>
 
 # List
 post2all posts

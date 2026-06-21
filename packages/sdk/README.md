@@ -36,6 +36,9 @@ await client.createPost({
 ## API
 
 - `listAccounts()`
+- `uploadMedia(path)`
+- `createMediaUpload(input)`
+- `confirmMediaUpload(mediaId)`
 - `createPost(input)`
 - `listPosts(input?)`
 - `getPost(postId)`

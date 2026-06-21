@@ -33,7 +33,7 @@ type PostCreateOptions = {
   content?: string;
   status?: "draft" | "scheduled" | "publish_now";
   scheduledAt?: string;
-  media?: string[];
+  mediaIds?: string;
   platformSettings?: string;
   json?: boolean;
 };
@@ -262,7 +262,7 @@ postCommand
   .option("--content <text>", "Post content")
   .option("--status <status>", "Status: draft, scheduled, or publish_now")
   .option("--scheduled-at <isoDate>", "ISO date for scheduled posts")
-  .option("--media <paths...>", "One or more media file paths")
+  .option("--media-ids <ids>", "Comma-separated IDs from `media upload`")
   .option("--platform-settings <json>", "Per-platform settings as JSON object")
   .option("--json", "Output JSON")
   .action(async (options: PostCreateOptions) => {
@@ -279,7 +279,7 @@ postCommand
         content: options.content,
         status,
         scheduledAt: options.scheduledAt,
-        mediaPaths: options.media,
+        mediaIds: options.mediaIds ? parseCsv(options.mediaIds) : undefined,
         platformSettings: parseJsonObject(options.platformSettings),
       };
 
@@ -291,6 +291,33 @@ postCommand
       }
 
       printOutput([response.post]);
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+const mediaCommand = program
+  .command("media")
+  .description("Upload media for use in posts");
+
+mediaCommand
+  .command("upload")
+  .description("Upload one or more local media files")
+  .argument("<paths...>", "Image or video file paths")
+  .option("--json", "Output JSON")
+  .action(async (paths: string[], options: { json?: boolean }) => {
+    try {
+      const rootOptions = program.opts<RootOptions>();
+      const client = await createClient(rootOptions);
+      const results = await Promise.all(
+        paths.map((path) => client.uploadMedia(path)),
+      );
+      const output = { media: results.map((result) => result.media) };
+      if (options.json) {
+        console.log(JSON.stringify(output, null, 2));
+        return;
+      }
+      printOutput(output.media);
     } catch (error) {
       handleError(error);
     }
@@ -430,9 +457,7 @@ postCommand
         return;
       }
 
-      console.log(
-        `Post ${postId} moved to ${response.post.status}`,
-      );
+      console.log(`Post ${postId} moved to ${response.post.status}`);
     } catch (error) {
       handleError(error);
     }

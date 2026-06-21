@@ -73,12 +73,9 @@ post2all post create \
   --content "Work in progress" \
   --status draft
 
-# create an image post with media
-post2all post create \
-  --type image \
-  --accounts acc_1 \
-  --content "New image" \
-  --media ./photo1.jpg ./photo2.jpg
+# Upload first and reference the returned ID
+post2all media upload ./video.mp4 --json
+post2all post create --type video --accounts acc_1 --media-ids <mediaId>
 
 # update a post
 post2all post update post_abc \
