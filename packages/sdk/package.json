@@ -1,6 +1,6 @@
 {
   "name": "@post2all/sdk",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": false,
   "description": "TypeScript SDK for post2all public API",
   "author": "post2all",
