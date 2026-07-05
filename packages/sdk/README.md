@@ -25,8 +25,8 @@ await client.createPost({
   content: "Long main caption for platforms with more room",
   status: "scheduled",
   scheduledAt: "2026-03-10T09:00:00+05:30",
-  platformSettings: {
-    threads: {
+  accountSettings: {
+    acc_threads: {
       caption: "Short Threads version",
     },
   },

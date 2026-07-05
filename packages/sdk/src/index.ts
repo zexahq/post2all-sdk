@@ -4,7 +4,7 @@ export {
   createMediaUploadInputSchema,
   createPostInputSchema,
   listPostsInputSchema,
-  platformSettingsSchema,
+  accountSettingsSchema,
   updatePostInputSchema,
 } from "./types.js";
 export type {
@@ -15,7 +15,7 @@ export type {
   ListPostsInput,
   ListPostsResponse,
   Platform,
-  PlatformSettings,
+  AccountSettings,
   PostStatus,
   PostType,
   SocialAccount,

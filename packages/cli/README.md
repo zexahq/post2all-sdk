@@ -59,12 +59,12 @@ post2all post create \
   --status scheduled \
   --scheduled-at "2026-03-10T09:00:00+05:30"
 
-# customize captions by platform
+# customize captions by account
 post2all post create \
   --type text \
   --accounts acc_twitter,acc_threads \
   --content "Long main caption for platforms with more room" \
-  --platform-settings '{"threads":{"caption":"Short Threads version"}}'
+  --account-settings '{"acc_threads":{"caption":"Short Threads version"}}'
 
 # save as draft
 post2all post create \

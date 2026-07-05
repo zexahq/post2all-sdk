@@ -83,8 +83,8 @@ export class Post2allClient {
       ...(input.scheduledAt !== undefined
         ? { scheduledAt: input.scheduledAt }
         : {}),
-      ...(input.platformSettings !== undefined
-        ? { platformSettings: input.platformSettings }
+      ...(input.accountSettings !== undefined
+        ? { accountSettings: input.accountSettings }
         : {}),
       ...(input.mediaIds !== undefined ? { mediaIds: input.mediaIds } : {}),
     };
@@ -224,8 +224,8 @@ export class Post2allClient {
     if (input.scheduledAt !== undefined) {
       body.scheduledAt = input.scheduledAt;
     }
-    if (input.platformSettings !== undefined) {
-      body.platformSettings = input.platformSettings;
+    if (input.accountSettings !== undefined) {
+      body.accountSettings = input.accountSettings;
     }
 
     const response = await this.request(

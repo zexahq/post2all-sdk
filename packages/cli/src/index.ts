@@ -6,8 +6,8 @@ import { dirname, join } from "node:path";
 import {
   Post2allApiError,
   Post2allClient,
+  type AccountSettings,
   type CreatePostInput,
-  type PlatformSettings,
   type UpdatePostInput,
 } from "@post2all/sdk";
 import { Command } from "commander";
@@ -34,7 +34,7 @@ type PostCreateOptions = {
   status?: "draft" | "scheduled" | "publish_now";
   scheduledAt?: string;
   mediaIds?: string;
-  platformSettings?: string;
+  accountSettings?: string;
   json?: boolean;
 };
 
@@ -52,7 +52,7 @@ type PostUpdateOptions = {
   content?: string;
   status?: "draft" | "scheduled";
   scheduledAt?: string;
-  platformSettings?: string;
+  accountSettings?: string;
   json?: boolean;
 };
 
@@ -125,22 +125,22 @@ function parseCsv(input: string): string[] {
     .filter(Boolean);
 }
 
-function parseJsonObject(input?: string): PlatformSettings | undefined {
+function parseJsonObject(input?: string): AccountSettings | undefined {
   if (!input) {
     return undefined;
   }
 
   const parsed = JSON.parse(input) as unknown;
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new Error("platform-settings must be a JSON object");
+    throw new Error("account-settings must be a JSON object");
   }
 
   const entries = Object.entries(parsed);
-  const normalized: PlatformSettings = {};
+  const normalized: AccountSettings = {};
 
   for (const [key, value] of entries) {
     if (!value || typeof value !== "object" || Array.isArray(value)) {
-      throw new Error("platform-settings values must be JSON objects");
+      throw new Error("account-settings values must be JSON objects");
     }
     normalized[key] = value as Record<string, unknown>;
   }
@@ -263,7 +263,10 @@ postCommand
   .option("--status <status>", "Status: draft, scheduled, or publish_now")
   .option("--scheduled-at <isoDate>", "ISO date for scheduled posts")
   .option("--media-ids <ids>", "Comma-separated IDs from `media upload`")
-  .option("--platform-settings <json>", "Per-platform settings as JSON object")
+  .option(
+    "--account-settings <json>",
+    "Per-account settings as JSON object keyed by account ID",
+  )
   .option("--json", "Output JSON")
   .action(async (options: PostCreateOptions) => {
     try {
@@ -280,7 +283,7 @@ postCommand
         status,
         scheduledAt: options.scheduledAt,
         mediaIds: options.mediaIds ? parseCsv(options.mediaIds) : undefined,
-        platformSettings: parseJsonObject(options.platformSettings),
+        accountSettings: parseJsonObject(options.accountSettings),
       };
 
       const response = await client.createPost(payload);
@@ -363,7 +366,10 @@ postCommand
   .option("--accounts <ids>", "Comma-separated social account IDs")
   .option("--status <status>", "Status: draft or scheduled")
   .option("--scheduled-at <isoDate>", "ISO date for scheduled posts")
-  .option("--platform-settings <json>", "Per-platform settings as JSON object")
+  .option(
+    "--account-settings <json>",
+    "Per-account settings as JSON object keyed by account ID",
+  )
   .option("--json", "Output JSON")
   .action(async (postId: string, options: PostUpdateOptions) => {
     try {
@@ -377,8 +383,8 @@ postCommand
       if (options.accounts) input.socialAccountIds = parseCsv(options.accounts);
       if (options.status) input.status = options.status;
       if (options.scheduledAt) input.scheduledAt = options.scheduledAt;
-      if (options.platformSettings) {
-        input.platformSettings = parseJsonObject(options.platformSettings);
+      if (options.accountSettings) {
+        input.accountSettings = parseJsonObject(options.accountSettings);
       }
 
       const response = await client.updatePost(postId, input);

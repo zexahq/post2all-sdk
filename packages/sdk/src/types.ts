@@ -20,7 +20,7 @@ export const postStatusSchema = z.enum([
   "failed",
 ]);
 
-export const platformSettingsSchema = z.record(
+export const accountSettingsSchema = z.record(
   z.string(),
   z.record(z.string(), z.unknown()),
 );
@@ -32,7 +32,7 @@ export const createPostInputSchema = z
     content: z.string().optional(),
     status: z.enum(["draft", "scheduled"]).optional(),
     scheduledAt: z.string().optional(),
-    platformSettings: platformSettingsSchema.optional(),
+    accountSettings: accountSettingsSchema.optional(),
     mediaIds: z.array(z.string().min(1)).default([]),
   })
   .superRefine((value, ctx) => {
@@ -61,7 +61,7 @@ export const updatePostInputSchema = z.object({
   socialAccountIds: z.array(z.string().min(1)).min(1).optional(),
   status: z.enum(["draft", "scheduled"]).optional(),
   scheduledAt: z.string().nullable().optional(),
-  platformSettings: platformSettingsSchema.optional(),
+  accountSettings: accountSettingsSchema.optional(),
 });
 
 export const listPostsInputSchema = z.object({
@@ -245,7 +245,7 @@ export type ConfirmMediaUploadResponse = z.infer<
   typeof confirmMediaUploadResponseSchema
 >;
 
-export type PlatformSettings = z.infer<typeof platformSettingsSchema>;
+export type AccountSettings = z.infer<typeof accountSettingsSchema>;
 export type CreatePostInput = z.input<typeof createPostInputSchema>;
 export type CreateMediaUploadInput = z.input<
   typeof createMediaUploadInputSchema

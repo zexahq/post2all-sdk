@@ -141,12 +141,12 @@ post2all post create \
   --content "My video" \
   --media-ids <mediaId>
 
-# Platform-specific settings
+# Account-specific settings
 post2all post create \
   --type text \
   --accounts acc_1,acc_2 \
-  --content "Platform-specific post" \
-  --platform-settings '{"twitter":{"caption":"Short Twitter/X version"},"youtube":{"title":"YouTube title"}}'
+  --content "Account-specific post" \
+  --account-settings '{"acc_1":{"caption":"Short Twitter/X version"},"acc_2":{"title":"YouTube title"}}'
 
 # Machine-readable output
 post2all post create --type text --accounts acc_1 --content "Test" --json
@@ -161,13 +161,13 @@ post2all post create --type text --accounts acc_1 --content "Test" --json
 | `--status` | No | `publish_now`, `scheduled`, `draft` | Default: publish immediately |
 | `--scheduled-at` | No | ISO 8601 date-time with `Z` or timezone offset | Required for `--status scheduled`; never omit the timezone |
 | `--media-ids` | No | Comma-separated media IDs | Returned by `post2all media upload` |
-| `--platform-settings` | No | JSON object | Platform-specific content overrides |
+| `--account-settings` | No | JSON object | Account-specific content overrides keyed by social account ID |
 | `--json` | No | Flag | Output as JSON |
 
 ### Read Posts
 
 ```bash
-# Get full post details (content, status, per-platform/account publish results)
+# Get full post details (content, status, per-account publish results)
 post2all post get <postId>
 post2all post get <postId> --json
 
@@ -240,7 +240,7 @@ post2all post delete <postId>
 
 Content is validated server-side. Exceeding limits returns an error with the specific platform that failed.
 
-Do not limit every platform to the shortest platform's character limit. Keep the main caption appropriate for platforms that support it, and use `--platform-settings` with a shorter `caption` only for constrained platforms such as X or Threads.
+Do not limit every platform to the shortest platform's character limit. Keep the main caption appropriate for platforms that support it, and use `--account-settings` with a shorter `caption` for constrained accounts such as X or Threads.
 
 ---
 
