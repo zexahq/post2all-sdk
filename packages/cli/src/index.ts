@@ -6,8 +6,11 @@ import { dirname, join } from "node:path";
 import {
   Post2allApiError,
   Post2allClient,
-  type AccountSettings,
+  postTargetsSchema,
+  type ApiErrorBody,
   type CreatePostInput,
+  type Delivery,
+  type PostTarget,
   type UpdatePostInput,
 } from "@post2all/sdk";
 import { Command } from "commander";
@@ -27,37 +30,42 @@ type RootOptions = {
   baseUrl?: string;
 };
 
-type PostCreateOptions = {
-  type: "text" | "image" | "video";
-  accounts: string;
-  content?: string;
-  status?: "draft" | "scheduled" | "publish_now";
+type DeliveryMode = "draft" | "now" | "scheduled";
+type LegacyStatus = "draft" | "scheduled" | "publish_now";
+
+type DeliveryOptions = {
+  delivery?: DeliveryMode;
+  status?: LegacyStatus;
   scheduledAt?: string;
+};
+
+type PostCreateOptions = DeliveryOptions & {
+  type: "text" | "image" | "video";
+  content?: string;
+  targets?: string;
   mediaIds?: string;
-  accountSettings?: string;
   json?: boolean;
 };
 
 type PostsOptions = {
   page?: string;
   limit?: string;
-  status?: "draft" | "scheduled" | "published" | "partially_failed" | "failed";
+  status?:
+    | "draft"
+    | "scheduled"
+    | "publishing"
+    | "published"
+    | "partially_failed"
+    | "failed";
   type?: "text" | "image" | "video";
   json?: boolean;
 };
 
-type PostUpdateOptions = {
+type PostUpdateOptions = DeliveryOptions & {
   type?: "text" | "image" | "video";
-  accounts?: string;
   content?: string;
-  status?: "draft" | "scheduled";
-  scheduledAt?: string;
-  accountSettings?: string;
-  json?: boolean;
-};
-
-type PostStatusOptions = {
-  status: "draft" | "scheduled";
+  targets?: string;
+  mediaIds?: string;
   json?: boolean;
 };
 
@@ -125,27 +133,66 @@ function parseCsv(input: string): string[] {
     .filter(Boolean);
 }
 
-function parseJsonObject(input?: string): AccountSettings | undefined {
-  if (!input) {
+function parseTargets(input?: string): PostTarget[] | undefined {
+  if (input === undefined) return undefined;
+
+  let value: unknown;
+  try {
+    value = JSON.parse(input);
+  } catch {
+    throw new Error("targets must be valid JSON");
+  }
+
+  const parsed = postTargetsSchema.safeParse(value);
+  if (!parsed.success) {
+    throw new Error(`Invalid targets: ${parsed.error.message}`);
+  }
+
+  return parsed.data;
+}
+
+function resolveDelivery(options: DeliveryOptions): Delivery | undefined {
+  if (options.delivery && options.status) {
+    throw new Error("Use --delivery or deprecated --status, not both");
+  }
+
+  const legacyMode =
+    options.status === "publish_now"
+      ? "now"
+      : options.status === "draft" || options.status === "scheduled"
+        ? options.status
+        : undefined;
+  const mode = options.delivery ?? legacyMode;
+
+  if (!mode) {
+    if (options.scheduledAt) {
+      throw new Error("--scheduled-at requires --delivery scheduled");
+    }
     return undefined;
   }
 
-  const parsed = JSON.parse(input) as unknown;
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new Error("account-settings must be a JSON object");
-  }
-
-  const entries = Object.entries(parsed);
-  const normalized: AccountSettings = {};
-
-  for (const [key, value] of entries) {
-    if (!value || typeof value !== "object" || Array.isArray(value)) {
-      throw new Error("account-settings values must be JSON objects");
+  if (mode === "scheduled") {
+    if (!options.scheduledAt) {
+      throw new Error("--scheduled-at is required for scheduled delivery");
     }
-    normalized[key] = value as Record<string, unknown>;
+    return { mode, scheduledAt: options.scheduledAt };
   }
 
-  return normalized;
+  if (options.scheduledAt) {
+    throw new Error("--scheduled-at can only be used with scheduled delivery");
+  }
+
+  return { mode };
+}
+
+function printApiIssues(error: Post2allApiError): void {
+  const details = error.details as ApiErrorBody | undefined;
+  const issues = details?.error?.issues;
+  if (!issues?.length) return;
+
+  for (const issue of issues) {
+    console.error(`  ${issue.path || "request"}: ${issue.message}`);
+  }
 }
 
 function handleError(error: unknown): never {
@@ -153,6 +200,7 @@ function handleError(error: unknown): never {
     console.error(
       `API Error (${error.code}, ${error.status}): ${error.message}`,
     );
+    printApiIssues(error);
     process.exit(1);
   }
 
@@ -198,10 +246,8 @@ configCommand
   .option("--json", "Output JSON")
   .action(async (options: { json?: boolean }) => {
     try {
-      const rootOptions = program.opts<RootOptions>();
-      const client = await createClient(rootOptions);
+      const client = await createClient(program.opts<RootOptions>());
       const response = await client.listAccounts();
-
       const summary = {
         accounts: response.accounts.length,
         platforms: [
@@ -227,8 +273,7 @@ program
   .option("--json", "Output JSON")
   .action(async (options: { json?: boolean }) => {
     try {
-      const rootOptions = program.opts<RootOptions>();
-      const client = await createClient(rootOptions);
+      const client = await createClient(program.opts<RootOptions>());
       const response = await client.listAccounts();
 
       if (options.json) {
@@ -243,8 +288,52 @@ program
           username: account.username,
           displayName: account.displayName,
           status: account.status,
+          postTypes: Object.entries(account.supportedPostTypes)
+            .filter(([, supported]) => supported)
+            .map(([type]) => type)
+            .join(", "),
         })),
       );
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+const accountCommand = program
+  .command("account")
+  .description("Inspect a connected account");
+
+accountCommand
+  .command("publishing-options")
+  .alias("options")
+  .description(
+    "Get platform capabilities and account-specific publishing choices",
+  )
+  .argument("<accountId>", "Social account ID")
+  .option("--json", "Output JSON")
+  .action(async (accountId: string, options: { json?: boolean }) => {
+    try {
+      const client = await createClient(program.opts<RootOptions>());
+      const response = await client.getAccountPublishingOptions(accountId);
+
+      if (options.json) {
+        console.log(JSON.stringify(response, null, 2));
+        return;
+      }
+
+      console.log(`${response.name} (${response.platform})`);
+      console.log(
+        `Post types: ${Object.entries(response.capability.postTypes)
+          .filter(([, supported]) => supported)
+          .map(([type]) => type)
+          .join(", ")}`,
+      );
+      if (response.destinations?.length) {
+        printOutput(response.destinations);
+      }
+      if (response.creatorInfo) {
+        printOutput([response.creatorInfo]);
+      }
     } catch (error) {
       handleError(error);
     }
@@ -256,43 +345,45 @@ const postCommand = program
 
 postCommand
   .command("create")
-  .description("Create a post")
+  .description("Create a draft, scheduled post, or immediate publish")
   .requiredOption("--type <type>", "Post type (text, image, video)")
-  .requiredOption("--accounts <ids>", "Comma-separated social account IDs")
-  .option("--content <text>", "Post content")
-  .option("--status <status>", "Status: draft, scheduled, or publish_now")
-  .option("--scheduled-at <isoDate>", "ISO date for scheduled posts")
+  .option("--content <text>", "Shared/default post content")
+  .option(
+    "--targets <json>",
+    "PostTarget[] JSON with platform, accountId, and settings",
+  )
+  .option("--delivery <mode>", "Delivery mode: draft, now, or scheduled")
+  .option(
+    "--scheduled-at <isoDate>",
+    "Timezone-aware ISO date for scheduled delivery",
+  )
   .option("--media-ids <ids>", "Comma-separated IDs from `media upload`")
   .option(
-    "--account-settings <json>",
-    "Per-account settings as JSON object keyed by account ID",
+    "--status <status>",
+    "Deprecated alias: draft, scheduled, or publish_now",
   )
   .option("--json", "Output JSON")
   .action(async (options: PostCreateOptions) => {
     try {
-      const rootOptions = program.opts<RootOptions>();
-      const client = await createClient(rootOptions);
-
-      const status =
-        options.status === "publish_now" ? "scheduled" : options.status;
+      const client = await createClient(program.opts<RootOptions>());
+      const targets = parseTargets(options.targets);
+      const delivery = resolveDelivery(options);
 
       const payload: CreatePostInput = {
         type: options.type,
-        socialAccountIds: parseCsv(options.accounts),
-        content: options.content,
-        status,
-        scheduledAt: options.scheduledAt,
-        mediaIds: options.mediaIds ? parseCsv(options.mediaIds) : undefined,
-        accountSettings: parseJsonObject(options.accountSettings),
+        ...(options.content !== undefined ? { content: options.content } : {}),
+        ...(targets !== undefined ? { targets } : {}),
+        ...(delivery !== undefined ? { delivery } : {}),
+        ...(options.mediaIds !== undefined
+          ? { mediaIds: parseCsv(options.mediaIds) }
+          : {}),
       };
 
       const response = await client.createPost(payload);
-
       if (options.json) {
         console.log(JSON.stringify(response, null, 2));
         return;
       }
-
       printOutput([response.post]);
     } catch (error) {
       handleError(error);
@@ -310,8 +401,7 @@ mediaCommand
   .option("--json", "Output JSON")
   .action(async (paths: string[], options: { json?: boolean }) => {
     try {
-      const rootOptions = program.opts<RootOptions>();
-      const client = await createClient(rootOptions);
+      const client = await createClient(program.opts<RootOptions>());
       const results = await Promise.all(
         paths.map((path) => client.uploadMedia(path)),
       );
@@ -333,8 +423,7 @@ postCommand
   .option("--json", "Output JSON")
   .action(async (postId: string, options: { json?: boolean }) => {
     try {
-      const rootOptions = program.opts<RootOptions>();
-      const client = await createClient(rootOptions);
+      const client = await createClient(program.opts<RootOptions>());
       const response = await client.getPost(postId);
 
       if (options.json) {
@@ -347,6 +436,7 @@ postCommand
           id: response.post.id,
           type: response.post.type,
           status: response.post.status,
+          targets: response.post.targets.length,
           scheduledAt: response.post.scheduledAt,
           publishedAt: response.post.publishedAt,
           createdAt: response.post.createdAt,
@@ -362,38 +452,39 @@ postCommand
   .description("Update a draft or scheduled post")
   .argument("<postId>", "Post ID")
   .option("--type <type>", "Post type (text, image, video)")
-  .option("--content <text>", "Post content")
-  .option("--accounts <ids>", "Comma-separated social account IDs")
-  .option("--status <status>", "Status: draft or scheduled")
-  .option("--scheduled-at <isoDate>", "ISO date for scheduled posts")
+  .option("--content <text>", "Shared/default post content")
+  .option("--targets <json>", "Replacement PostTarget[] JSON")
+  .option("--delivery <mode>", "Delivery mode: draft, now, or scheduled")
   .option(
-    "--account-settings <json>",
-    "Per-account settings as JSON object keyed by account ID",
+    "--scheduled-at <isoDate>",
+    "Timezone-aware ISO date for scheduled delivery",
+  )
+  .option("--media-ids <ids>", "Replacement comma-separated media IDs")
+  .option(
+    "--status <status>",
+    "Deprecated alias: draft, scheduled, or publish_now",
   )
   .option("--json", "Output JSON")
   .action(async (postId: string, options: PostUpdateOptions) => {
     try {
-      const rootOptions = program.opts<RootOptions>();
-      const client = await createClient(rootOptions);
-
-      const input: UpdatePostInput = {};
-
-      if (options.type) input.type = options.type;
-      if (options.content) input.content = options.content;
-      if (options.accounts) input.socialAccountIds = parseCsv(options.accounts);
-      if (options.status) input.status = options.status;
-      if (options.scheduledAt) input.scheduledAt = options.scheduledAt;
-      if (options.accountSettings) {
-        input.accountSettings = parseJsonObject(options.accountSettings);
-      }
+      const client = await createClient(program.opts<RootOptions>());
+      const targets = parseTargets(options.targets);
+      const delivery = resolveDelivery(options);
+      const input: UpdatePostInput = {
+        ...(options.type !== undefined ? { type: options.type } : {}),
+        ...(options.content !== undefined ? { content: options.content } : {}),
+        ...(targets !== undefined ? { targets } : {}),
+        ...(delivery !== undefined ? { delivery } : {}),
+        ...(options.mediaIds !== undefined
+          ? { mediaIds: parseCsv(options.mediaIds) }
+          : {}),
+      };
 
       const response = await client.updatePost(postId, input);
-
       if (options.json) {
         console.log(JSON.stringify(response, null, 2));
         return;
       }
-
       printOutput([response.post]);
     } catch (error) {
       handleError(error);
@@ -407,15 +498,13 @@ postCommand
   .option("--json", "Output JSON")
   .action(async (postId: string, options: { json?: boolean }) => {
     try {
-      const rootOptions = program.opts<RootOptions>();
-      const client = await createClient(rootOptions);
+      const client = await createClient(program.opts<RootOptions>());
       const response = await client.deletePost(postId);
 
       if (options.json) {
         console.log(JSON.stringify(response, null, 2));
         return;
       }
-
       console.log(`Post deleted: ${response.success}`);
     } catch (error) {
       handleError(error);
@@ -424,46 +513,19 @@ postCommand
 
 postCommand
   .command("cancel")
-  .description("Cancel a scheduled post (move back to draft)")
+  .description("Cancel a scheduled post and move it back to draft")
   .argument("<postId>", "Post ID")
   .option("--json", "Output JSON")
   .action(async (postId: string, options: { json?: boolean }) => {
     try {
-      const rootOptions = program.opts<RootOptions>();
-      const client = await createClient(rootOptions);
+      const client = await createClient(program.opts<RootOptions>());
       const response = await client.cancelPost(postId);
 
       if (options.json) {
         console.log(JSON.stringify(response, null, 2));
         return;
       }
-
       printOutput([response.post]);
-    } catch (error) {
-      handleError(error);
-    }
-  });
-
-postCommand
-  .command("status")
-  .description("Toggle a post between draft and scheduled")
-  .argument("<postId>", "Post ID")
-  .requiredOption("--status <status>", "Target status: draft or scheduled")
-  .option("--json", "Output JSON")
-  .action(async (postId: string, options: PostStatusOptions) => {
-    try {
-      const rootOptions = program.opts<RootOptions>();
-      const client = await createClient(rootOptions);
-      const response = await client.updatePost(postId, {
-        status: options.status,
-      });
-
-      if (options.json) {
-        console.log(JSON.stringify(response, null, 2));
-        return;
-      }
-
-      console.log(`Post ${postId} moved to ${response.post.status}`);
     } catch (error) {
       handleError(error);
     }
@@ -474,13 +536,12 @@ program
   .description("List posts")
   .option("--page <page>", "Page number")
   .option("--limit <limit>", "Items per page")
-  .option("--status <status>", "Filter by status")
-  .option("--type <type>", "Filter by type")
+  .option("--status <status>", "Filter by post status")
+  .option("--type <type>", "Filter by post type")
   .option("--json", "Output JSON")
   .action(async (options: PostsOptions) => {
     try {
-      const rootOptions = program.opts<RootOptions>();
-      const client = await createClient(rootOptions);
+      const client = await createClient(program.opts<RootOptions>());
       const response = await client.listPosts({
         page: options.page ? Number(options.page) : undefined,
         limit: options.limit ? Number(options.limit) : undefined,
@@ -498,12 +559,12 @@ program
           id: post.id,
           type: post.type,
           status: post.status,
+          targets: post.targets.length,
           scheduledAt: post.scheduledAt,
           publishedAt: post.publishedAt,
           createdAt: post.createdAt,
         })),
       );
-
       console.log(
         `Page ${response.pagination.page}, limit ${response.pagination.limit}, hasMore=${response.pagination.hasMore}`,
       );

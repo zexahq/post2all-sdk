@@ -1,110 +1,136 @@
 # post2all CLI
 
-Official post2all command line interface.
+Official command-line client for the post2all REST API.
 
-## Install
+## Install and authenticate
 
 ```bash
 pnpm add -g @post2all/cli
-```
-
-## Authentication
-
-Set API key with one of these approaches:
-
-```bash
-# recommended for one-time setup
 post2all config set-key amp_xxx
-
-# per-shell
-export POST2ALL_API_KEY=amp_xxx
-
-# per-command
-post2all --api-key amp_xxx accounts
+post2all config whoami
 ```
 
-Priority order is:
+Credentials are resolved in this order: `--api-key`, `POST2ALL_API_KEY`, then `~/.config/post2all/config.json`.
 
-1. `--api-key`
-2. `POST2ALL_API_KEY`
-3. `~/.config/post2all/config.json`
-
-## Commands
+## Discover accounts
 
 ```bash
-# validate key and show account/platform summary
-post2all config whoami
-
-# list connected social accounts
-post2all accounts
-
-# list posts (supports filters)
-post2all posts --status published --limit 10
-
-# get one post
-post2all post get post_abc
-
-# create a text post (publish immediately)
-post2all post create \
-  --type text \
-  --accounts acc_1,acc_2 \
-  --content "Hello from post2all CLI" \
-  --status publish_now
-
-# create a scheduled text post
-post2all post create \
-  --type text \
-  --accounts acc_1,acc_2 \
-  --content "Hello from post2all CLI" \
-  --status scheduled \
-  --scheduled-at "2026-03-10T09:00:00+05:30"
-
-# customize captions by account
-post2all post create \
-  --type text \
-  --accounts acc_twitter,acc_threads \
-  --content "Long main caption for platforms with more room" \
-  --account-settings '{"acc_threads":{"caption":"Short Threads version"}}'
-
-# save as draft
-post2all post create \
-  --type text \
-  --accounts acc_1 \
-  --content "Work in progress" \
-  --status draft
-
-# Upload first and reference the returned ID
-post2all media upload ./video.mp4 --json
-post2all post create --type video --accounts acc_1 --media-ids <mediaId>
-
-# update a post
-post2all post update post_abc \
-  --content "Updated content" \
-  --scheduled-at "2026-03-11T10:00:00+05:30"
-
-# cancel a scheduled post
-post2all post cancel post_abc
-
-# toggle post status
-post2all post status post_abc --status scheduled
-
-# delete a post
-post2all post delete post_abc
-
-# return raw JSON
-post2all posts --json
+post2all accounts --json
+post2all account publishing-options acc_discord_123 --json
 ```
+
+Use the returned account ID and platform when constructing targets. Publishing options include platform capabilities and dynamic choices such as Discord channels and TikTok privacy levels.
+
+## Create posts
+
+The CLI accepts the same target structure as the REST API:
+
+```bash
+post2all post create \
+  --type text \
+  --content "New release shipping today 🚀" \
+  --targets '[
+    {
+      "platform": "discord",
+      "accountId": "acc_discord_123",
+      "settings": {
+        "channelId": "1234567890",
+        "autoCrosspost": true
+      }
+    },
+    {
+      "platform": "threads",
+      "accountId": "acc_threads_123",
+      "settings": {
+        "caption": "A shorter Threads version",
+        "topicTag": "buildinpublic"
+      }
+    }
+  ]' \
+  --delivery now
+```
+
+Save an incomplete draft without any targets:
+
+```bash
+post2all post create \
+  --type text \
+  --content "Work in progress" \
+  --delivery draft
+```
+
+Schedule a post using a timezone-aware ISO timestamp:
+
+```bash
+post2all post create \
+  --type text \
+  --content "Scheduled update" \
+  --targets '[{"platform":"linkedin","accountId":"acc_linkedin_123","settings":{}}]' \
+  --delivery scheduled \
+  --scheduled-at "2026-07-20T09:00:00+05:30"
+```
+
+No delivery flag means `draft`. Immediate publishing is always explicit with `--delivery now`.
+
+## Media
+
+```bash
+post2all media upload ./video.mp4 --json
+
+post2all post create \
+  --type video \
+  --content "Product walkthrough" \
+  --media-ids media_123 \
+  --targets '[
+    {
+      "platform": "youtube",
+      "accountId": "acc_youtube_123",
+      "settings": {
+        "title": "Product walkthrough",
+        "privacyStatus": "unlisted"
+      }
+    }
+  ]' \
+  --delivery now
+```
+
+## Manage posts
+
+```bash
+post2all posts --status scheduled --limit 20 --json
+post2all post get post_abc --json
+
+post2all post update post_abc \
+  --content "Updated copy" \
+  --delivery scheduled \
+  --scheduled-at "2026-07-21T10:00:00+05:30"
+
+# Replace all destinations and settings
+post2all post update post_abc \
+  --targets '[{"platform":"linkedin","accountId":"acc_linkedin_123","settings":{}}]'
+
+# Replace attached media
+post2all post update post_abc --media-ids media_456
+
+post2all post cancel post_abc
+post2all post delete post_abc
+```
+
+Only draft and scheduled posts can be updated. Arrays supplied to update replace their previous values.
+
+## Main flags
+
+| Flag                   | Description                                                                         |
+| ---------------------- | ----------------------------------------------------------------------------------- |
+| `--targets <json>`     | `PostTarget[]` containing `platform`, `accountId`, and platform-specific `settings` |
+| `--delivery <mode>`    | `draft`, `now`, or `scheduled`                                                      |
+| `--scheduled-at <iso>` | Required for scheduled delivery; must include `Z` or an explicit offset             |
+| `--media-ids <ids>`    | Comma-separated IDs returned by `media upload`                                      |
+| `--json`               | Return machine-readable JSON                                                        |
+
+`--status` remains as a deprecated alias for `draft`, `scheduled`, and `publish_now`; new integrations should use `--delivery`.
 
 ## Documentation
 
-- **[SKILL.md](./SKILL.md)** — Complete reference for AI agents with patterns and examples
-- **[API Reference](https://www.post2all.com/docs/api-reference)** — Full REST API documentation
-
-## Publish (maintainers)
-
-```bash
-pnpm --filter @post2all/sdk build
-pnpm --filter ./packages/cli typecheck
-pnpm --filter ./packages/cli build
-pnpm --filter ./packages/cli publish --access public
-```
+- [Agent skill](./SKILL.md)
+- [REST API reference](https://www.post2all.com/docs/api-reference)

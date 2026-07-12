@@ -11,6 +11,8 @@ import {
   type CreatePostResponse,
   type GetPostResponse,
   getPostResponseSchema,
+  type GetAccountPublishingOptionsResponse,
+  getAccountPublishingOptionsResponseSchema,
   type ListAccountsResponse,
   listAccountsResponseSchema,
   type ListPostsInput,
@@ -72,27 +74,29 @@ export class Post2allClient {
     return this.parseJson(response, listAccountsResponseSchema);
   }
 
+  public async getAccountPublishingOptions(
+    accountId: string,
+  ): Promise<GetAccountPublishingOptionsResponse> {
+    if (!accountId) {
+      throw new Post2allApiError("accountId is required", {
+        status: 400,
+        code: "INVALID_REQUEST",
+      });
+    }
+
+    const response = await this.request(
+      `/accounts/${encodeURIComponent(accountId)}/publishing-options`,
+    );
+    return this.parseJson(response, getAccountPublishingOptionsResponseSchema);
+  }
+
   public async createPost(input: CreatePostInput): Promise<CreatePostResponse> {
     input = createPostInputSchema.parse(input);
-
-    const body = {
-      type: input.type,
-      socialAccountIds: input.socialAccountIds,
-      ...(input.content !== undefined ? { content: input.content } : {}),
-      ...(input.status !== undefined ? { status: input.status } : {}),
-      ...(input.scheduledAt !== undefined
-        ? { scheduledAt: input.scheduledAt }
-        : {}),
-      ...(input.accountSettings !== undefined
-        ? { accountSettings: input.accountSettings }
-        : {}),
-      ...(input.mediaIds !== undefined ? { mediaIds: input.mediaIds } : {}),
-    };
 
     const response = await this.request("/posts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify(input),
     });
 
     return this.parseJson(response, createPostResponseSchema);
@@ -207,33 +211,13 @@ export class Post2allClient {
     }
 
     input = updatePostInputSchema.parse(input);
-    const body: Record<string, unknown> = {};
-
-    if (input.type !== undefined) {
-      body.type = input.type;
-    }
-    if (input.content !== undefined) {
-      body.content = input.content;
-    }
-    if (input.socialAccountIds !== undefined) {
-      body.socialAccountIds = input.socialAccountIds;
-    }
-    if (input.status !== undefined) {
-      body.status = input.status;
-    }
-    if (input.scheduledAt !== undefined) {
-      body.scheduledAt = input.scheduledAt;
-    }
-    if (input.accountSettings !== undefined) {
-      body.accountSettings = input.accountSettings;
-    }
 
     const response = await this.request(
       `/posts/${encodeURIComponent(postId)}`,
       {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify(input),
       },
     );
 
