@@ -268,6 +268,35 @@ configCommand
   });
 
 program
+  .command("constraints")
+  .description(
+    "Get current constraints for every platform and connected account",
+  )
+  .option("--json", "Output JSON")
+  .action(async (options: { json?: boolean }) => {
+    try {
+      const client = await createClient(program.opts<RootOptions>());
+      const response = await client.getPublishingConstraints();
+
+      if (options.json) {
+        console.log(JSON.stringify(response, null, 2));
+        return;
+      }
+
+      printOutput(
+        Object.entries(response.platforms).map(([platform, entry]) => ({
+          platform,
+          name: entry.name,
+          textLimit: entry.capability.text.maxLength,
+          media: entry.capability.media?.description ?? "None",
+        })),
+      );
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+program
   .command("accounts")
   .description("List connected social accounts")
   .option("--json", "Output JSON")
@@ -328,6 +357,10 @@ accountCommand
           .map(([type]) => type)
           .join(", ")}`,
       );
+      console.log(`Text limit: ${response.capability.text.maxLength}`);
+      if (response.capability.media) {
+        console.log(`Media: ${response.capability.media.description}`);
+      }
       if (response.destinations?.length) {
         printOutput(response.destinations);
       }

@@ -45,6 +45,13 @@ const optionalUrl = z.preprocess(
 const captionSchema = z.string().optional();
 const thumbnailTimestampSchema = z.number().finite().min(0).optional();
 
+function getDelimitedTagsLength(tags: readonly string[]): number {
+  return tags.reduce(
+    (total, tag) => total + tag.length + (/\s/.test(tag) ? 2 : 0),
+    Math.max(0, tags.length - 1),
+  );
+}
+
 export const twitterSettingsSchema = z
   .object({
     caption: captionSchema,
@@ -63,7 +70,13 @@ export const youtubeSettingsSchema = z
     caption: captionSchema,
     title: z.string().trim().max(100).optional(),
     description: z.string().max(5_000).optional(),
-    tags: z.array(z.string().trim().min(1)).max(500).optional(),
+    tags: z
+      .array(z.string().trim().min(1))
+      .refine(
+        (tags) => getDelimitedTagsLength(tags) <= 500,
+        "YouTube tags exceed 500 total characters",
+      )
+      .optional(),
     privacyStatus: z.enum(["public", "private", "unlisted"]).optional(),
     categoryId: optionalTrimmedString,
     thumbnail: optionalUrl,
@@ -89,6 +102,8 @@ export const facebookSettingsSchema = z
 export const pinterestSettingsSchema = z
   .object({
     caption: captionSchema,
+    title: z.string().trim().max(100).optional(),
+    description: z.string().max(800).optional(),
     boardId: optionalTrimmedString,
     altText: z.string().max(500).optional(),
     thumbnail: optionalUrl,
@@ -151,7 +166,7 @@ export const tiktokSettingsSchema = z
   .object({
     caption: captionSchema,
     title: z.string().trim().max(90).optional(),
-    description: z.string().max(4_000).optional(),
+    description: z.string().max(2_000).optional(),
     tiktokPrivacyLevel: tiktokPrivacyLevelSchema.optional(),
     tiktokDisableComment: z.boolean().optional(),
     tiktokDisableDuet: z.boolean().optional(),
@@ -400,6 +415,7 @@ const platformFieldCapabilitySchema = z
     minLength: z.number().optional(),
     maxLength: z.number().optional(),
     maxCount: z.number().optional(),
+    maxTotalLength: z.number().optional(),
     label: z.string().optional(),
     description: z.string().optional(),
   })
@@ -465,6 +481,29 @@ export const getAccountPublishingOptionsResponseSchema = z.object({
   capability: platformCapabilitySchema,
   destinations: z.array(platformDestinationSchema).optional(),
   creatorInfo: tiktokCreatorInfoSchema.optional(),
+});
+
+export const publishingConstraintsResponseSchema = z.object({
+  guide: z.object({
+    workflow: z.string(),
+    postType: z.string(),
+    accountOptions: z.string(),
+  }),
+  platforms: z.record(
+    platformSchema,
+    z.object({
+      name: z.string(),
+      releaseStatus: z.enum(["public", "coming_soon"]),
+      capability: platformCapabilitySchema,
+    }),
+  ),
+  accounts: z.array(
+    z.object({
+      accountId: z.string(),
+      platform: platformSchema,
+      textMaxLength: z.number(),
+    }),
+  ),
 });
 
 // ─── Post responses ──────────────────────────────────────────────────────────
@@ -649,6 +688,9 @@ export type PlatformDestination = z.infer<typeof platformDestinationSchema>;
 export type TikTokCreatorInfo = z.infer<typeof tiktokCreatorInfoSchema>;
 export type GetAccountPublishingOptionsResponse = z.infer<
   typeof getAccountPublishingOptionsResponseSchema
+>;
+export type PublishingConstraintsResponse = z.infer<
+  typeof publishingConstraintsResponseSchema
 >;
 export type PostResponseTarget = z.infer<typeof postResponseTargetSchema>;
 export type ListAccountsResponse = z.infer<typeof listAccountsResponseSchema>;

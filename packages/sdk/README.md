@@ -74,12 +74,24 @@ Drafts may omit targets and incomplete publishing settings. Immediate and schedu
 
 ## Account publishing options
 
+Load the complete constraint catalog once before composing:
+
+```ts
+const constraints = await client.getPublishingConstraints();
+console.log(constraints.platforms);
+console.log(constraints.accounts); // Account-specific text limits, including X tiers
+```
+
 Use account publishing options before rendering or submitting dynamic settings such as Discord channels or TikTok privacy choices:
 
 ```ts
 const options = await client.getAccountPublishingOptions("acc_discord_123");
 console.log(options.destinations);
 ```
+
+`capability` is the authoritative, account-specific constraint set. Read it before composing or validating a post instead of hard-coding platform limits. For example, an X account's `capability.text.maxLength` reflects whether that account is Free, Basic, Premium, or Premium+.
+
+The API still requires one post `type` (`text`, `image`, or `video`), and every attached media item must match it. Mixed-media posts are not supported yet.
 
 ## Media
 
@@ -107,6 +119,7 @@ await client.createPost({
 ## API
 
 - `listAccounts()`
+- `getPublishingConstraints()`
 - `getAccountPublishingOptions(accountId)`
 - `uploadMedia(path)`
 - `createMediaUpload(input)`

@@ -15,11 +15,14 @@ Credentials are resolved in this order: `--api-key`, `POST2ALL_API_KEY`, then `~
 ## Discover accounts
 
 ```bash
+post2all constraints --json
 post2all accounts --json
 post2all account publishing-options acc_discord_123 --json
 ```
 
-Use the returned account ID and platform when constructing targets. Publishing options include platform capabilities and dynamic choices such as Discord channels and TikTok privacy levels.
+Call `constraints` once before composing to load every platform limit and connected-account text override. Use the returned account ID and platform when constructing targets. Per-account publishing options are only needed for dynamic choices such as Discord channels and TikTok privacy levels.
+
+Treat publishing options as the source of truth for text, media, and field constraints. Limits can be account-specific—for example, X paid tiers receive a different text limit. The current create/update flow still requires `--type text|image|video`; mixed image/video posts are not supported.
 
 ## Create posts
 

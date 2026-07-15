@@ -18,6 +18,14 @@ post2all config whoami --json
 
 Credentials are resolved from `--api-key`, `POST2ALL_API_KEY`, or `post2all config set-key`. Never print, repeat, or commit API keys.
 
+Before composing, previewing, scheduling, or publishing, load all current constraints once:
+
+```bash
+post2all constraints --json
+```
+
+Use its platform capabilities and account-specific text limits. Do not make separate publishing-options calls just to discover constraints.
+
 List connected accounts before creating targets. Never guess an account ID or platform:
 
 ```bash
@@ -43,13 +51,15 @@ Every publishing destination is a target:
 
 `platform` is a schema discriminator. Settings from another platform are rejected. Multiple accounts on the same platform are represented as separate target objects.
 
-Use account publishing options to discover dynamic settings:
+Use account publishing options only when a selected account needs dynamic settings:
 
 ```bash
 post2all account publishing-options <accountId> --json
 ```
 
 This is required before selecting values such as a Discord channel or TikTok privacy level.
+
+Use `post2all constraints --json` as the authoritative constraint catalog. Per-account publishing options are for dynamic choices such as Discord channels and TikTok privacy settings. The API currently requires one post type and does not accept mixed image/video media.
 
 ## Delivery modes
 
