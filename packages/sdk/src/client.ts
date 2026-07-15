@@ -17,6 +17,10 @@ import {
   listAccountsResponseSchema,
   type PublishingConstraintsResponse,
   publishingConstraintsResponseSchema,
+  type PublishingSchemaResponse,
+  publishingSchemaResponseSchema,
+  type PublishingOptionsResponse,
+  publishingOptionsResponseSchema,
   type ListPostsInput,
   type ListPostsResponse,
   listPostsResponseSchema,
@@ -81,6 +85,23 @@ export class Post2allClient {
     return this.parseJson(response, publishingConstraintsResponseSchema);
   }
 
+  public async getPublishingSchema(
+    accountIds: string[],
+  ): Promise<PublishingSchemaResponse> {
+    if (accountIds.length === 0) {
+      throw new Post2allApiError("At least one accountId is required", {
+        status: 400,
+        code: "INVALID_REQUEST",
+      });
+    }
+    const response = await this.request("/publishing-schema", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accountIds }),
+    });
+    return this.parseJson(response, publishingSchemaResponseSchema);
+  }
+
   public async getAccountPublishingOptions(
     accountId: string,
   ): Promise<GetAccountPublishingOptionsResponse> {
@@ -95,6 +116,23 @@ export class Post2allClient {
       `/accounts/${encodeURIComponent(accountId)}/publishing-options`,
     );
     return this.parseJson(response, getAccountPublishingOptionsResponseSchema);
+  }
+
+  public async getPublishingOptions(
+    accountIds: string[],
+  ): Promise<PublishingOptionsResponse> {
+    if (accountIds.length === 0) {
+      throw new Post2allApiError("At least one accountId is required", {
+        status: 400,
+        code: "INVALID_REQUEST",
+      });
+    }
+    const response = await this.request("/publishing-options", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accountIds }),
+    });
+    return this.parseJson(response, publishingOptionsResponseSchema);
   }
 
   public async createPost(input: CreatePostInput): Promise<CreatePostResponse> {

@@ -15,7 +15,7 @@ Credentials are resolved in this order: `--api-key`, `POST2ALL_API_KEY`, then `~
 ## Discover accounts
 
 ```bash
-post2all constraints --json
+post2all constraints <accountId...> --json
 post2all accounts --json
 post2all account publishing-options acc_discord_123 --json
 ```

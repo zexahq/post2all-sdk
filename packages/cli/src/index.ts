@@ -269,14 +269,13 @@ configCommand
 
 program
   .command("constraints")
-  .description(
-    "Get current constraints for every platform and connected account",
-  )
+  .description("Get current publishing schema for selected connected accounts")
+  .argument("<accountIds...>", "One or more social account IDs")
   .option("--json", "Output JSON")
-  .action(async (options: { json?: boolean }) => {
+  .action(async (accountIds: string[], options: { json?: boolean }) => {
     try {
       const client = await createClient(program.opts<RootOptions>());
-      const response = await client.getPublishingConstraints();
+      const response = await client.getPublishingSchema(accountIds);
 
       if (options.json) {
         console.log(JSON.stringify(response, null, 2));
@@ -284,11 +283,13 @@ program
       }
 
       printOutput(
-        Object.entries(response.platforms).map(([platform, entry]) => ({
-          platform,
+        response.accounts.map((entry) => ({
+          accountId: entry.accountId,
+          platform: entry.platform,
           name: entry.name,
           textLimit: entry.capability.text.maxLength,
           media: entry.capability.media?.description ?? "None",
+          discoveries: entry.discoveries.join(", ") || "none",
         })),
       );
     } catch (error) {
@@ -338,35 +339,26 @@ accountCommand
   .description(
     "Get platform capabilities and account-specific publishing choices",
   )
-  .argument("<accountId>", "Social account ID")
+  .argument("<accountIds...>", "One or more social account IDs")
   .option("--json", "Output JSON")
-  .action(async (accountId: string, options: { json?: boolean }) => {
+  .action(async (accountIds: string[], options: { json?: boolean }) => {
     try {
       const client = await createClient(program.opts<RootOptions>());
-      const response = await client.getAccountPublishingOptions(accountId);
+      const response = await client.getPublishingOptions(accountIds);
 
       if (options.json) {
         console.log(JSON.stringify(response, null, 2));
         return;
       }
 
-      console.log(`${response.name} (${response.platform})`);
-      console.log(
-        `Post types: ${Object.entries(response.capability.postTypes)
-          .filter(([, supported]) => supported)
-          .map(([type]) => type)
-          .join(", ")}`,
+      printOutput(
+        response.accounts.map((account) => ({
+          accountId: account.accountId,
+          platform: account.platform,
+          destinations: account.destinations?.length ?? 0,
+          creatorInfo: account.creatorInfo ? "available" : "none",
+        })),
       );
-      console.log(`Text limit: ${response.capability.text.maxLength}`);
-      if (response.capability.media) {
-        console.log(`Media: ${response.capability.media.description}`);
-      }
-      if (response.destinations?.length) {
-        printOutput(response.destinations);
-      }
-      if (response.creatorInfo) {
-        printOutput([response.creatorInfo]);
-      }
     } catch (error) {
       handleError(error);
     }

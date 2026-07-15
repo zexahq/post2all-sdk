@@ -418,6 +418,16 @@ const platformFieldCapabilitySchema = z
     maxTotalLength: z.number().optional(),
     label: z.string().optional(),
     description: z.string().optional(),
+    type: z
+      .enum(["text", "url", "boolean", "enum", "tags", "number"])
+      .optional(),
+    valueSource: z
+      .enum(["free_text", "static_enum", "account_discovery"])
+      .optional(),
+    options: z
+      .array(z.object({ value: z.string(), label: z.string() }))
+      .optional(),
+    discoveryKey: z.enum(["destinations", "creatorInfo"]).optional(),
   })
   .passthrough();
 
@@ -483,6 +493,17 @@ export const getAccountPublishingOptionsResponseSchema = z.object({
   creatorInfo: tiktokCreatorInfoSchema.optional(),
 });
 
+export const publishingOptionsResponseSchema = z.object({
+  accounts: z.array(
+    z.object({
+      accountId: z.string(),
+      platform: platformSchema,
+      destinations: z.array(platformDestinationSchema).optional(),
+      creatorInfo: tiktokCreatorInfoSchema.optional(),
+    }),
+  ),
+});
+
 export const publishingConstraintsResponseSchema = z.object({
   guide: z.object({
     workflow: z.string(),
@@ -502,6 +523,23 @@ export const publishingConstraintsResponseSchema = z.object({
       accountId: z.string(),
       platform: platformSchema,
       textMaxLength: z.number(),
+    }),
+  ),
+});
+
+export const publishingSchemaResponseSchema = z.object({
+  guide: z.object({
+    workflow: z.string(),
+    postType: z.string(),
+    accountOptions: z.string(),
+  }),
+  accounts: z.array(
+    z.object({
+      accountId: z.string(),
+      platform: platformSchema,
+      name: z.string(),
+      capability: platformCapabilitySchema,
+      discoveries: z.array(z.enum(["destinations", "creatorInfo"])),
     }),
   ),
 });
@@ -689,8 +727,14 @@ export type TikTokCreatorInfo = z.infer<typeof tiktokCreatorInfoSchema>;
 export type GetAccountPublishingOptionsResponse = z.infer<
   typeof getAccountPublishingOptionsResponseSchema
 >;
+export type PublishingOptionsResponse = z.infer<
+  typeof publishingOptionsResponseSchema
+>;
 export type PublishingConstraintsResponse = z.infer<
   typeof publishingConstraintsResponseSchema
+>;
+export type PublishingSchemaResponse = z.infer<
+  typeof publishingSchemaResponseSchema
 >;
 export type PostResponseTarget = z.infer<typeof postResponseTargetSchema>;
 export type ListAccountsResponse = z.infer<typeof listAccountsResponseSchema>;

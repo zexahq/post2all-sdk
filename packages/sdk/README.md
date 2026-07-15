@@ -77,7 +77,7 @@ Drafts may omit targets and incomplete publishing settings. Immediate and schedu
 Load the complete constraint catalog once before composing:
 
 ```ts
-const constraints = await client.getPublishingConstraints();
+const schema = await client.getPublishingSchema([accountId]);
 console.log(constraints.platforms);
 console.log(constraints.accounts); // Account-specific text limits, including X tiers
 ```
@@ -119,7 +119,7 @@ await client.createPost({
 ## API
 
 - `listAccounts()`
-- `getPublishingConstraints()`
+- `getPublishingSchema(accountIds)`
 - `getAccountPublishingOptions(accountId)`
 - `uploadMedia(path)`
 - `createMediaUpload(input)`
