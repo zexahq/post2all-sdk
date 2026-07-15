@@ -1,6 +1,6 @@
 {
   "name": "@post2all/cli",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": false,
   "description": "post2all CLI",
   "author": "post2all",
@@ -32,7 +32,7 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@post2all/sdk": "workspace:^0.2.1",
+    "@post2all/sdk": "workspace:^0.2.2",
     "commander": "^14.0.1"
   },
   "devDependencies": {
