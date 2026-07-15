@@ -15,8 +15,6 @@ import {
   getAccountPublishingOptionsResponseSchema,
   type ListAccountsResponse,
   listAccountsResponseSchema,
-  type PublishingConstraintsResponse,
-  publishingConstraintsResponseSchema,
   type PublishingSchemaResponse,
   publishingSchemaResponseSchema,
   type PublishingOptionsResponse,
@@ -78,11 +76,6 @@ export class Post2allClient {
   public async listAccounts(): Promise<ListAccountsResponse> {
     const response = await this.request("/accounts");
     return this.parseJson(response, listAccountsResponseSchema);
-  }
-
-  public async getPublishingConstraints(): Promise<PublishingConstraintsResponse> {
-    const response = await this.request("/publishing-constraints");
-    return this.parseJson(response, publishingConstraintsResponseSchema);
   }
 
   public async getPublishingSchema(

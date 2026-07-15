@@ -18,6 +18,10 @@
     },
     "typecheck": {
       "outputs": []
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": []
     }
   }
 }

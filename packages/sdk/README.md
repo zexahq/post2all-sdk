@@ -44,6 +44,8 @@ const { post } = await client.createPost({
 
 `targets` is a discriminated union. Once `platform` is selected, TypeScript and Zod only accept settings supported by that platform.
 
+Platform IDs, settings fields, fixed enums, and limits are generated from the private monorepo's public publishing contract. Do not edit the generated contract file in this repository; the release synchronization job regenerates it.
+
 ## Delivery modes
 
 ```ts
@@ -74,19 +76,18 @@ Drafts may omit targets and incomplete publishing settings. Immediate and schedu
 
 ## Account publishing options
 
-Load the complete constraint catalog once before composing:
+Load the selected-account schema once before composing:
 
 ```ts
 const schema = await client.getPublishingSchema([accountId]);
-console.log(constraints.platforms);
-console.log(constraints.accounts); // Account-specific text limits, including X tiers
+console.log(schema.accounts); // Fixed choices and account-specific limits, including X tiers
 ```
 
 Use account publishing options before rendering or submitting dynamic settings such as Discord channels or TikTok privacy choices:
 
 ```ts
-const options = await client.getAccountPublishingOptions("acc_discord_123");
-console.log(options.destinations);
+const options = await client.getPublishingOptions(["acc_discord_123"]);
+console.log(options.accounts[0]?.destinations);
 ```
 
 `capability` is the authoritative, account-specific constraint set. Read it before composing or validating a post instead of hard-coding platform limits. For example, an X account's `capability.text.maxLength` reflects whether that account is Free, Basic, Premium, or Premium+.
@@ -120,7 +121,8 @@ await client.createPost({
 
 - `listAccounts()`
 - `getPublishingSchema(accountIds)`
-- `getAccountPublishingOptions(accountId)`
+- `getPublishingOptions(accountIds)`
+- `getAccountPublishingOptions(accountId)` (compatibility)
 - `uploadMedia(path)`
 - `createMediaUpload(input)`
 - `confirmMediaUpload(mediaId)`

@@ -1,21 +1,35 @@
 import { z } from "zod";
+import { PUBLIC_PUBLISHING_CONTRACT } from "./generated/publishing-contract.js";
 
 // ─── Shared post contracts ───────────────────────────────────────────────────
 
-export const platformSchema = z.enum([
-  "twitter",
-  "linkedin",
-  "youtube",
-  "instagram",
-  "facebook",
-  "pinterest",
-  "threads",
-  "dribbble",
-  "bluesky",
-  "telegram",
-  "discord",
-  "tiktok",
-]);
+const platformIds = Object.keys(PUBLIC_PUBLISHING_CONTRACT.platforms) as [
+  keyof typeof PUBLIC_PUBLISHING_CONTRACT.platforms,
+  ...(keyof typeof PUBLIC_PUBLISHING_CONTRACT.platforms)[],
+];
+export const platformSchema = z.enum(platformIds);
+export type Platform = z.infer<typeof platformSchema>;
+
+type ContractFieldValue<C> = C extends { type: "boolean" }
+  ? boolean
+  : C extends { type: "number" }
+    ? number
+    : C extends { type: "tags" }
+      ? string[]
+      : C extends {
+            type: "enum";
+            options: readonly { value: infer V extends string }[];
+          }
+        ? V
+        : string;
+
+export type PlatformSettingsByPlatform = {
+  [P in Platform]: Partial<{
+    [K in keyof (typeof PUBLIC_PUBLISHING_CONTRACT.platforms)[P]["capability"]["fields"]]: ContractFieldValue<
+      (typeof PUBLIC_PUBLISHING_CONTRACT.platforms)[P]["capability"]["fields"][K]
+    >;
+  }>;
+};
 
 export const postTypeSchema = z.enum(["text", "image", "video"]);
 
@@ -34,17 +48,6 @@ function emptyStringToUndefined(value: unknown): unknown {
     : value;
 }
 
-const optionalTrimmedString = z.preprocess(
-  emptyStringToUndefined,
-  z.string().trim().min(1).optional(),
-);
-const optionalUrl = z.preprocess(
-  emptyStringToUndefined,
-  z.string().url().optional(),
-);
-const captionSchema = z.string().optional();
-const thumbnailTimestampSchema = z.number().finite().min(0).optional();
-
 function getDelimitedTagsLength(tags: readonly string[]): number {
   return tags.reduce(
     (total, tag) => total + tag.length + (/\s/.test(tag) ? 2 : 0),
@@ -52,201 +55,157 @@ function getDelimitedTagsLength(tags: readonly string[]): number {
   );
 }
 
-export const twitterSettingsSchema = z
-  .object({
-    caption: captionSchema,
-    altText: z.string().max(1_000).optional(),
-  })
-  .strict();
+type GeneratedField = {
+  type?: string;
+  trim?: boolean;
+  emptyAsUndefined?: boolean;
+  minLength?: number;
+  maxLength?: number;
+  maxCount?: number;
+  maxTotalLength?: number;
+  minValue?: number;
+  options?: readonly { value: string; label: string }[];
+};
 
-export const linkedinSettingsSchema = z
-  .object({
-    caption: captionSchema,
-  })
-  .strict();
+function buildGeneratedFieldSchema(
+  name: string,
+  config: GeneratedField,
+): z.ZodTypeAny {
+  let schema: z.ZodTypeAny;
+  switch (config.type) {
+    case "boolean":
+      schema = z.boolean();
+      break;
+    case "number": {
+      let numberSchema = z.number().finite();
+      if (config.minValue !== undefined)
+        numberSchema = numberSchema.min(config.minValue);
+      schema = numberSchema;
+      break;
+    }
+    case "tags": {
+      let tagsSchema = z.array(z.string().trim().min(1));
+      if (config.maxCount !== undefined)
+        tagsSchema = tagsSchema.max(config.maxCount);
+      schema = config.maxTotalLength
+        ? tagsSchema.refine(
+            (tags) => getDelimitedTagsLength(tags) <= config.maxTotalLength!,
+            `${name} exceed ${config.maxTotalLength} total characters`,
+          )
+        : tagsSchema;
+      break;
+    }
+    case "url":
+      schema = z.string().url();
+      break;
+    case "enum": {
+      const values = config.options?.map((option) => option.value) ?? [];
+      schema = values.length
+        ? z.enum(values as [string, ...string[]])
+        : z.string().trim().min(1);
+      break;
+    }
+    default: {
+      let stringSchema = z.string();
+      if (config.trim) stringSchema = stringSchema.trim();
+      if (config.minLength !== undefined)
+        stringSchema = stringSchema.min(config.minLength);
+      if (config.maxLength !== undefined)
+        stringSchema = stringSchema.max(config.maxLength);
+      schema = stringSchema;
+    }
+  }
+  const optional = schema.optional();
+  return config.emptyAsUndefined
+    ? z.preprocess(emptyStringToUndefined, optional)
+    : optional;
+}
 
-export const youtubeSettingsSchema = z
-  .object({
-    caption: captionSchema,
-    title: z.string().trim().max(100).optional(),
-    description: z.string().max(5_000).optional(),
-    tags: z
-      .array(z.string().trim().min(1))
-      .refine(
-        (tags) => getDelimitedTagsLength(tags) <= 500,
-        "YouTube tags exceed 500 total characters",
-      )
-      .optional(),
-    privacyStatus: z.enum(["public", "private", "unlisted"]).optional(),
-    categoryId: optionalTrimmedString,
-    thumbnail: optionalUrl,
-    thumbnailTimestamp: thumbnailTimestampSchema,
-  })
-  .strict();
+function buildGeneratedSettingsSchema<P extends Platform>(
+  platform: P,
+): z.ZodType<PlatformSettingsByPlatform[P]> {
+  const fields =
+    PUBLIC_PUBLISHING_CONTRACT.platforms[platform].capability.fields;
+  return z
+    .object(
+      Object.fromEntries(
+        Object.entries(fields).map(([name, config]) => [
+          name,
+          buildGeneratedFieldSchema(name, config),
+        ]),
+      ),
+    )
+    .strict() as z.ZodType<PlatformSettingsByPlatform[P]>;
+}
 
-export const instagramSettingsSchema = z
-  .object({
-    caption: captionSchema,
-    altText: z.string().max(1_000).optional(),
-    thumbnail: optionalUrl,
-    thumbnailTimestamp: thumbnailTimestampSchema,
-  })
-  .strict();
+export const twitterSettingsSchema = buildGeneratedSettingsSchema("twitter");
 
-export const facebookSettingsSchema = z
-  .object({
-    caption: captionSchema,
-  })
-  .strict();
+export const linkedinSettingsSchema = buildGeneratedSettingsSchema("linkedin");
 
-export const pinterestSettingsSchema = z
-  .object({
-    caption: captionSchema,
-    title: z.string().trim().max(100).optional(),
-    description: z.string().max(800).optional(),
-    boardId: optionalTrimmedString,
-    altText: z.string().max(500).optional(),
-    thumbnail: optionalUrl,
-    thumbnailTimestamp: thumbnailTimestampSchema,
-  })
-  .strict();
+export const youtubeSettingsSchema = buildGeneratedSettingsSchema("youtube");
 
-export const threadsSettingsSchema = z
-  .object({
-    caption: captionSchema,
-    altText: z.string().max(1_000).optional(),
-    topicTag: z.string().trim().max(50).optional(),
-  })
-  .strict();
+export const instagramSettingsSchema =
+  buildGeneratedSettingsSchema("instagram");
 
-export const dribbbleSettingsSchema = z
-  .object({
-    caption: captionSchema,
-    title: z.string().trim().max(255).optional(),
-    description: z.string().max(40_000).optional(),
-    tags: z.array(z.string().trim().min(1)).max(12).optional(),
-    teamId: optionalTrimmedString,
-    lowProfile: z.boolean().optional(),
-  })
-  .strict();
+export const facebookSettingsSchema = buildGeneratedSettingsSchema("facebook");
 
-export const blueskySettingsSchema = z
-  .object({
-    caption: captionSchema,
-    altText: z.string().max(10_000).optional(),
-  })
-  .strict();
+export const pinterestSettingsSchema =
+  buildGeneratedSettingsSchema("pinterest");
 
-export const telegramSettingsSchema = z
-  .object({
-    caption: captionSchema,
-    linkUrl: optionalUrl,
-    linkText: z.string().trim().max(64).optional(),
-    disableNotification: z.boolean().optional(),
-    protectContent: z.boolean().optional(),
-  })
-  .strict();
+export const threadsSettingsSchema = buildGeneratedSettingsSchema("threads");
 
-export const discordSettingsSchema = z
-  .object({
-    caption: captionSchema,
-    channelId: optionalTrimmedString,
-    autoCrosspost: z.boolean().optional(),
-  })
-  .strict();
+export const dribbbleSettingsSchema = buildGeneratedSettingsSchema("dribbble");
 
-export const tiktokPrivacyLevelSchema = z.enum([
-  "PUBLIC_TO_EVERYONE",
-  "MUTUAL_FOLLOW_FRIENDS",
-  "FOLLOWER_OF_CREATOR",
-  "SELF_ONLY",
-]);
+export const blueskySettingsSchema = buildGeneratedSettingsSchema("bluesky");
 
-export const tiktokSettingsSchema = z
-  .object({
-    caption: captionSchema,
-    title: z.string().trim().max(90).optional(),
-    description: z.string().max(2_000).optional(),
-    tiktokPrivacyLevel: tiktokPrivacyLevelSchema.optional(),
-    tiktokDisableComment: z.boolean().optional(),
-    tiktokDisableDuet: z.boolean().optional(),
-    tiktokDisableStitch: z.boolean().optional(),
-  })
-  .strict();
+export const telegramSettingsSchema = buildGeneratedSettingsSchema("telegram");
 
-function targetSchema<
-  const P extends Platform,
-  S extends z.ZodObject<z.ZodRawShape>,
->(platform: P, settings: S) {
+export const discordSettingsSchema = buildGeneratedSettingsSchema("discord");
+
+const tiktokPrivacyValues =
+  PUBLIC_PUBLISHING_CONTRACT.platforms.tiktok.capability.fields.tiktokPrivacyLevel.options.map(
+    (option) => option.value,
+  );
+export const tiktokPrivacyLevelSchema = z.enum(
+  tiktokPrivacyValues as [
+    (typeof tiktokPrivacyValues)[number],
+    ...(typeof tiktokPrivacyValues)[number][],
+  ],
+);
+
+export const tiktokSettingsSchema = buildGeneratedSettingsSchema("tiktok");
+
+export type PostTarget = {
+  [P in Platform]: {
+    platform: P;
+    accountId: string;
+    settings: PlatformSettingsByPlatform[P];
+  };
+}[Platform];
+export type PostTargetFor<P extends Platform> = Extract<
+  PostTarget,
+  { platform: P }
+>;
+
+function targetSchema<const P extends Platform>(platform: P) {
   return z
     .object({
       platform: z.literal(platform),
       accountId: z.string().min(1),
-      settings,
+      settings: buildGeneratedSettingsSchema(platform),
     })
     .strict();
 }
 
-export const twitterTargetSchema = targetSchema(
-  "twitter",
-  twitterSettingsSchema,
-);
-export const linkedinTargetSchema = targetSchema(
-  "linkedin",
-  linkedinSettingsSchema,
-);
-export const youtubeTargetSchema = targetSchema(
-  "youtube",
-  youtubeSettingsSchema,
-);
-export const instagramTargetSchema = targetSchema(
-  "instagram",
-  instagramSettingsSchema,
-);
-export const facebookTargetSchema = targetSchema(
-  "facebook",
-  facebookSettingsSchema,
-);
-export const pinterestTargetSchema = targetSchema(
-  "pinterest",
-  pinterestSettingsSchema,
-);
-export const threadsTargetSchema = targetSchema(
-  "threads",
-  threadsSettingsSchema,
-);
-export const dribbbleTargetSchema = targetSchema(
-  "dribbble",
-  dribbbleSettingsSchema,
-);
-export const blueskyTargetSchema = targetSchema(
-  "bluesky",
-  blueskySettingsSchema,
-);
-export const telegramTargetSchema = targetSchema(
-  "telegram",
-  telegramSettingsSchema,
-);
-export const discordTargetSchema = targetSchema(
-  "discord",
-  discordSettingsSchema,
-);
-export const tiktokTargetSchema = targetSchema("tiktok", tiktokSettingsSchema);
-
-export const postTargetSchema = z.discriminatedUnion("platform", [
-  twitterTargetSchema,
-  linkedinTargetSchema,
-  youtubeTargetSchema,
-  instagramTargetSchema,
-  facebookTargetSchema,
-  pinterestTargetSchema,
-  threadsTargetSchema,
-  dribbbleTargetSchema,
-  blueskyTargetSchema,
-  telegramTargetSchema,
-  discordTargetSchema,
-  tiktokTargetSchema,
-]);
+const targetSchemas = platformIds.map((platform) => targetSchema(platform));
+export const postTargetSchema = z.discriminatedUnion(
+  "platform",
+  targetSchemas as unknown as [
+    (typeof targetSchemas)[number],
+    (typeof targetSchemas)[number],
+    ...(typeof targetSchemas)[number][],
+  ],
+) as z.ZodType<PostTarget>;
 
 function addDuplicateTargetIssues(
   targets: PostTarget[],
@@ -428,6 +387,7 @@ const platformFieldCapabilitySchema = z
       .array(z.object({ value: z.string(), label: z.string() }))
       .optional(),
     discoveryKey: z.enum(["destinations", "creatorInfo"]).optional(),
+    defaultValue: z.union([z.string(), z.boolean(), z.number()]).optional(),
   })
   .passthrough();
 
@@ -500,29 +460,6 @@ export const publishingOptionsResponseSchema = z.object({
       platform: platformSchema,
       destinations: z.array(platformDestinationSchema).optional(),
       creatorInfo: tiktokCreatorInfoSchema.optional(),
-    }),
-  ),
-});
-
-export const publishingConstraintsResponseSchema = z.object({
-  guide: z.object({
-    workflow: z.string(),
-    postType: z.string(),
-    accountOptions: z.string(),
-  }),
-  platforms: z.record(
-    platformSchema,
-    z.object({
-      name: z.string(),
-      releaseStatus: z.enum(["public", "coming_soon"]),
-      capability: platformCapabilitySchema,
-    }),
-  ),
-  accounts: z.array(
-    z.object({
-      accountId: z.string(),
-      platform: platformSchema,
-      textMaxLength: z.number(),
     }),
   ),
 });
@@ -682,16 +619,9 @@ export const confirmMediaUploadResponseSchema = z.object({
 
 // ─── Public types ────────────────────────────────────────────────────────────
 
-export type Platform = z.infer<typeof platformSchema>;
 export type PostType = z.infer<typeof postTypeSchema>;
 export type PostStatus = z.infer<typeof postStatusSchema>;
 export type Delivery = z.infer<typeof deliverySchema>;
-export type PostTarget = z.infer<typeof postTargetSchema>;
-export type PostTargetFor<P extends Platform> = Extract<
-  PostTarget,
-  { platform: P }
->;
-
 export type TwitterSettings = z.infer<typeof twitterSettingsSchema>;
 export type LinkedinSettings = z.infer<typeof linkedinSettingsSchema>;
 export type YoutubeSettings = z.infer<typeof youtubeSettingsSchema>;
@@ -705,21 +635,6 @@ export type TelegramSettings = z.infer<typeof telegramSettingsSchema>;
 export type DiscordSettings = z.infer<typeof discordSettingsSchema>;
 export type TiktokSettings = z.infer<typeof tiktokSettingsSchema>;
 
-export type PlatformSettingsByPlatform = {
-  twitter: TwitterSettings;
-  linkedin: LinkedinSettings;
-  youtube: YoutubeSettings;
-  instagram: InstagramSettings;
-  facebook: FacebookSettings;
-  pinterest: PinterestSettings;
-  threads: ThreadsSettings;
-  dribbble: DribbbleSettings;
-  bluesky: BlueskySettings;
-  telegram: TelegramSettings;
-  discord: DiscordSettings;
-  tiktok: TiktokSettings;
-};
-
 export type SocialAccount = z.infer<typeof socialAccountSchema>;
 export type PlatformCapability = z.infer<typeof platformCapabilitySchema>;
 export type PlatformDestination = z.infer<typeof platformDestinationSchema>;
@@ -729,9 +644,6 @@ export type GetAccountPublishingOptionsResponse = z.infer<
 >;
 export type PublishingOptionsResponse = z.infer<
   typeof publishingOptionsResponseSchema
->;
-export type PublishingConstraintsResponse = z.infer<
-  typeof publishingConstraintsResponseSchema
 >;
 export type PublishingSchemaResponse = z.infer<
   typeof publishingSchemaResponseSchema
