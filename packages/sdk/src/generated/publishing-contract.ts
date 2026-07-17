@@ -548,6 +548,13 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
           ],
           maxVideoBytes: 1073741824,
           maxImageBytes: 20971520,
+          maxImageWidth: 1920,
+          maxImageHeight: 1920,
+          maxImagePixels: 2073600,
+          minVideoWidth: 360,
+          minVideoHeight: 360,
+          maxVideoDurationSeconds: 600,
+          maxVideoDurationMetadataKey: "max_video_post_duration_sec",
           description: "1–35 images or exactly 1 MP4/MOV/WebM video.",
         },
         fields: {
