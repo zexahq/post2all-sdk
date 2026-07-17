@@ -135,5 +135,5 @@ Only draft and scheduled posts can be updated. Arrays supplied to update replace
 
 ## Documentation
 
-- [Agent skill](./SKILL.md)
+- [Agent skill](https://www.skills.sh/zexahq/post2all-agent/post2all)
 - [REST API reference](https://www.post2all.com/docs/api-reference)

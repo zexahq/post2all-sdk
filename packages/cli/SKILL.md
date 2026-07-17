@@ -159,7 +159,9 @@ Supported target settings include:
 - Bluesky: `caption`, `altText`
 - Telegram: `caption`, `linkUrl`, `linkText`, `disableNotification`, `protectContent`
 - Discord: `caption`, `channelId`, `autoCrosspost`
-- TikTok: `caption`, `title`, `description`, `tiktokPrivacyLevel`, `tiktokDisableComment`, `tiktokDisableDuet`, `tiktokDisableStitch`
+- TikTok: `caption`, `title`, `description`, `tiktokContentPostingMethod`, `tiktokPrivacyLevel`, `tiktokDisableComment`, `tiktokDisableDuet`, `tiktokDisableStitch`
+
+For TikTok, `tiktokContentPostingMethod` is `DIRECT_POST` or `UPLOAD`. Upload sends media to the creator's TikTok inbox for editing and is reported as a successful `completed` post with an `uploaded` target.
 
 Do not invent fields. Prefer the main content for shared copy and use target `caption` only for account-specific overrides.
 
@@ -202,7 +204,7 @@ post2all post delete <postId> --json
 
 ## Status filters
 
-Valid post statuses are `draft`, `scheduled`, `publishing`, `published`, `partially_failed`, and `failed`.
+Valid post statuses are `draft`, `scheduled`, `publishing`, `published`, `completed`, `partially_failed`, and `failed`. A `completed` post succeeded but includes at least one upload-only target that still needs user action in the platform app.
 
 ## Errors
 

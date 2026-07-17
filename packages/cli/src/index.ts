@@ -55,6 +55,7 @@ type PostsOptions = {
     | "scheduled"
     | "publishing"
     | "published"
+    | "completed"
     | "partially_failed"
     | "failed";
   type?: "text" | "image" | "video";

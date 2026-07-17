@@ -199,7 +199,7 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
     },
     facebook: {
       name: "Facebook",
-      releaseStatus: "public",
+      releaseStatus: "coming_soon",
       capability: {
         postTypes: {
           text: true,
@@ -551,6 +551,22 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
           description: "1–35 images or exactly 1 MP4/MOV/WebM video.",
         },
         fields: {
+          tiktokContentPostingMethod: {
+            enabled: true,
+            label: "Posting method",
+            type: "enum",
+            defaultValue: "DIRECT_POST",
+            options: [
+              {
+                value: "DIRECT_POST",
+                label: "Publish directly",
+              },
+              {
+                value: "UPLOAD",
+                label: "Upload for editing in TikTok",
+              },
+            ],
+          },
           caption: {
             enabled: true,
             maxLength: 2000,

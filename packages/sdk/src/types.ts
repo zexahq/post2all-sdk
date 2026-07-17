@@ -38,6 +38,7 @@ export const postStatusSchema = z.enum([
   "scheduled",
   "publishing",
   "published",
+  "completed",
   "partially_failed",
   "failed",
 ]);
@@ -514,9 +515,14 @@ export const postResponseTargetSchema = z
     displayName: z.string().nullable().optional(),
     avatarUrl: z.string().nullable().optional(),
     disconnected: z.boolean().optional(),
-    status: z.string().optional(),
+    status: z
+      .enum(["pending", "publishing", "published", "uploaded", "failed"])
+      .or(z.string())
+      .optional(),
     platformPostId: z.string().nullable().optional(),
     platformPostUrl: z.string().nullable().optional(),
+    providerStatus: z.string().nullable().optional(),
+    providerFailReason: z.string().nullable().optional(),
     error: z.string().nullable().optional(),
     publishedAt: z.string().nullable().optional(),
   })
