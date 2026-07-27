@@ -18,7 +18,6 @@ const client = new Post2allClient({
 });
 
 const { post } = await client.createPost({
-  type: "text",
   content: "New release shipping today 🚀",
   targets: [
     {
@@ -50,13 +49,11 @@ Platform IDs, settings fields, fixed enums, and limits are generated from the pr
 
 ```ts
 await client.createPost({
-  type: "text",
   content: "Work in progress",
   delivery: { mode: "draft" },
 });
 
 await client.createPost({
-  type: "text",
   content: "Scheduled announcement",
   targets: [
     {
@@ -92,7 +89,7 @@ console.log(options.accounts[0]?.destinations);
 
 `capability` is the authoritative, account-specific constraint set. Read it before composing or validating a post instead of hard-coding platform limits. For example, an X account's `capability.text.maxLength` reflects whether that account is Free, Basic, Premium, or Premium+.
 
-The API still requires one post `type` (`text`, `image`, or `video`), and every attached media item must match it. Mixed-media posts are not supported yet.
+Do not send a fixed post type. Composition is inferred from attached media. Mixed image/video is allowed only when platform `media.allowMixedMedia` is true.
 
 ## Media
 
@@ -100,7 +97,6 @@ The API still requires one post `type` (`text`, `image`, or `video`), and every 
 const { media } = await client.uploadMedia("./video.mp4");
 
 await client.createPost({
-  type: "video",
   content: "Product walkthrough",
   mediaIds: [media.id],
   targets: [

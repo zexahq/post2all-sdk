@@ -31,7 +31,8 @@ export type PlatformSettingsByPlatform = {
   }>;
 };
 
-export const postTypeSchema = z.enum(["text", "image", "video"]);
+/** Derived composition stored on posts for display/filter; not required on create/update. */
+export const postTypeSchema = z.enum(["text", "image", "video", "mixed"]);
 
 export const postStatusSchema = z.enum([
   "draft",
@@ -241,41 +242,23 @@ export const deliverySchema = z.discriminatedUnion("mode", [
 ]);
 
 function addPostContentIssues(
-  value: { type?: PostType; content?: string; mediaIds?: string[] },
+  value: { content?: string; mediaIds?: string[] },
   ctx: z.RefinementCtx,
   requireComplete: boolean,
 ): void {
-  if (!value.type || !requireComplete) return;
+  if (!requireComplete) return;
   const mediaIds = value.mediaIds ?? [];
-
-  if (value.type === "text" && !value.content?.trim()) {
+  if (mediaIds.length === 0 && !value.content?.trim()) {
     ctx.addIssue({
       code: "custom",
       path: ["content"],
-      message: "Content is required for text posts",
-    });
-  }
-
-  if (value.type !== "text" && mediaIds.length === 0) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["mediaIds"],
-      message: `At least one media ID is required for ${value.type} posts`,
-    });
-  }
-
-  if (value.type === "text" && mediaIds.length > 0) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["mediaIds"],
-      message: "Text posts cannot include media IDs",
+      message: "Content or media is required",
     });
   }
 }
 
 export const createPostInputSchema = z
   .object({
-    type: postTypeSchema,
     content: z.string().optional(),
     mediaIds: z.array(z.string().min(1)).default([]),
     targets: postTargetsSchema.default([]),
@@ -296,7 +279,6 @@ export const createPostInputSchema = z
 
 export const updatePostInputSchema = z
   .object({
-    type: postTypeSchema.optional(),
     content: z.string().optional(),
     mediaIds: z.array(z.string().min(1)).optional(),
     targets: postTargetsSchema.optional(),
@@ -304,7 +286,7 @@ export const updatePostInputSchema = z
   })
   .strict()
   .superRefine((value, ctx) => {
-    if (value.type && value.mediaIds) {
+    if (value.mediaIds !== undefined || value.content !== undefined) {
       addPostContentIssues(
         value,
         ctx,
@@ -330,7 +312,6 @@ export const listPostsInputSchema = z
     page: z.number().int().min(1).optional(),
     limit: z.number().int().min(1).max(100).optional(),
     status: postStatusSchema.optional(),
-    type: postTypeSchema.optional(),
   })
   .strict();
 
@@ -468,7 +449,7 @@ export const publishingOptionsResponseSchema = z.object({
 export const publishingSchemaResponseSchema = z.object({
   guide: z.object({
     workflow: z.string(),
-    postType: z.string(),
+    media: z.string(),
     accountOptions: z.string(),
   }),
   accounts: z.array(
@@ -530,7 +511,6 @@ export const postResponseTargetSchema = z
 
 export const listPostsItemSchema = z.object({
   id: z.string(),
-  type: postTypeSchema.or(z.string()),
   content: z.string().nullable().optional(),
   status: postStatusSchema.or(z.string()),
   scheduledAt: z.string().nullable().optional(),
@@ -551,7 +531,6 @@ export const listPostsResponseSchema = z.object({
 export const getPostResponseSchema = z.object({
   post: z.object({
     id: z.string(),
-    type: postTypeSchema.or(z.string()),
     content: z.string().nullable().optional(),
     media: z.array(postMediaSchema),
     status: postStatusSchema.or(z.string()),
@@ -566,7 +545,6 @@ export const getPostResponseSchema = z.object({
 export const createPostResponseSchema = z.object({
   post: z.object({
     id: z.string(),
-    type: postTypeSchema.or(z.string()),
     content: z.string().nullable().optional(),
     status: postStatusSchema.or(z.string()),
     scheduledAt: z.string().nullable().optional(),
@@ -580,7 +558,6 @@ export const createPostResponseSchema = z.object({
 export const updatePostResponseSchema = z.object({
   post: z.object({
     id: z.string(),
-    type: postTypeSchema.or(z.string()),
     content: z.string().nullable().optional(),
     status: postStatusSchema.or(z.string()),
     scheduledAt: z.string().nullable().optional(),
@@ -595,7 +572,6 @@ export const deletePostResponseSchema = z.object({ success: z.boolean() });
 export const cancelPostResponseSchema = z.object({
   post: z.object({
     id: z.string(),
-    type: postTypeSchema.or(z.string()),
     content: z.string().nullable().optional(),
     status: postStatusSchema.or(z.string()),
     scheduledAt: z.string().nullable().optional(),

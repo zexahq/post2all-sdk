@@ -22,7 +22,7 @@ post2all account publishing-options acc_discord_123 --json
 
 Call `constraints` once before composing to load every platform limit and connected-account text override. Use the returned account ID and platform when constructing targets. Per-account publishing options are only needed for dynamic choices such as Discord channels and TikTok privacy levels.
 
-Treat publishing options as the source of truth for text, media, and field constraints. Limits can be account-specific—for example, X paid tiers receive a different text limit. The current create/update flow still requires `--type text|image|video`; mixed image/video posts are not supported.
+Treat publishing options as the source of truth for text, media, and field constraints. Limits can be account-specific—for example, X paid tiers receive a different text limit. Do not pass `--type`. Composition is inferred from attached media; mixed image/video is allowed only when platform `media.allowMixedMedia` is true.
 
 ## Create posts
 
@@ -30,7 +30,6 @@ The CLI accepts the same target structure as the REST API:
 
 ```bash
 post2all post create \
-  --type text \
   --content "New release shipping today 🚀" \
   --targets '[
     {
@@ -57,7 +56,6 @@ Save an incomplete draft without any targets:
 
 ```bash
 post2all post create \
-  --type text \
   --content "Work in progress" \
   --delivery draft
 ```
@@ -66,7 +64,6 @@ Schedule a post using a timezone-aware ISO timestamp:
 
 ```bash
 post2all post create \
-  --type text \
   --content "Scheduled update" \
   --targets '[{"platform":"linkedin","accountId":"acc_linkedin_123","settings":{}}]' \
   --delivery scheduled \
@@ -81,7 +78,6 @@ No delivery flag means `draft`. Immediate publishing is always explicit with `--
 post2all media upload ./video.mp4 --json
 
 post2all post create \
-  --type video \
   --content "Product walkthrough" \
   --media-ids media_123 \
   --targets '[

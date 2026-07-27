@@ -59,7 +59,7 @@ post2all account publishing-options <accountId...> --json
 
 This is required before selecting values such as a Discord channel or TikTok privacy level.
 
-Use `post2all constraints <accountId...> --json` as the authoritative selected-account publishing schema. Per-account publishing options are for dynamic choices such as Discord channels and TikTok creator restrictions. The API currently requires one post type and does not accept mixed image/video media.
+Use `post2all constraints <accountId...> --json` as the authoritative selected-account publishing schema. Per-account publishing options are for dynamic choices such as Discord channels and TikTok creator restrictions. Post composition is inferred from attached media; do not pass a fixed post type. Mixed media is allowed only when platform media.allowMixedMedia is true.
 
 ## Delivery modes
 
@@ -83,7 +83,6 @@ Draft:
 
 ```bash
 post2all post create \
-  --type text \
   --content "Work in progress" \
   --delivery draft \
   --json
@@ -93,7 +92,6 @@ Immediate publish:
 
 ```bash
 post2all post create \
-  --type text \
   --content "New release shipping today 🚀" \
   --targets '[
     {
@@ -118,7 +116,6 @@ Scheduled post:
 
 ```bash
 post2all post create \
-  --type text \
   --content "Scheduled update" \
   --targets '[{"platform":"linkedin","accountId":"acc_linkedin_123","settings":{}}]' \
   --delivery scheduled \
@@ -134,7 +131,6 @@ Upload local files first and use the returned media IDs:
 post2all media upload ./photo.jpg --json
 
 post2all post create \
-  --type image \
   --media-ids media_123 \
   --content "Photo update" \
   --targets '[{"platform":"instagram","accountId":"acc_instagram_123","settings":{"altText":"Product dashboard"}}]' \
@@ -142,7 +138,7 @@ post2all post create \
   --json
 ```
 
-Use `--type video` for videos. Do not pass local paths directly to post creation.
+Attach image and/or video media IDs as needed. Do not pass local paths directly to post creation. Mixed media only when platform allowMixedMedia is true.
 
 ## Platform settings
 
@@ -212,7 +208,7 @@ Valid post statuses are `draft`, `scheduled`, `publishing`, `published`, `comple
 - `INVALID_ACCOUNTS`: refresh account IDs and verify each target's platform matches the account.
 - `INVALID_REQUEST`: inspect field-level issue paths and correct the target or delivery.
 - `MEDIA_NOT_FOUND`: upload again or use valid media IDs from the current workspace.
-- `UNSUPPORTED_MEDIA`: verify post type, file type, size, and selected platforms.
+- `UNSUPPORTED_MEDIA`: verify file type, size, mixed-media rules, and selected platforms.
 - `POST_NOT_FOUND`: refresh the post list.
 - `PLAN_UPGRADE_REQUIRED` / `FORBIDDEN`: explain the account or plan restriction rather than retrying.
 - `RATE_LIMITED`: wait before retrying.

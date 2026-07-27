@@ -214,10 +214,6 @@ export class Post2allClient {
       query.set("status", input.status);
     }
 
-    if (input.type !== undefined) {
-      query.set("type", input.type);
-    }
-
     const queryString = query.toString();
     const path = queryString.length > 0 ? `/posts?${queryString}` : "/posts";
 

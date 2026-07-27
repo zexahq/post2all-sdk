@@ -40,7 +40,6 @@ type DeliveryOptions = {
 };
 
 type PostCreateOptions = DeliveryOptions & {
-  type: "text" | "image" | "video";
   content?: string;
   targets?: string;
   mediaIds?: string;
@@ -58,12 +57,10 @@ type PostsOptions = {
     | "completed"
     | "partially_failed"
     | "failed";
-  type?: "text" | "image" | "video";
   json?: boolean;
 };
 
 type PostUpdateOptions = DeliveryOptions & {
-  type?: "text" | "image" | "video";
   content?: string;
   targets?: string;
   mediaIds?: string;
@@ -319,9 +316,10 @@ program
           username: account.username,
           displayName: account.displayName,
           status: account.status,
-          postTypes: Object.entries(account.supportedPostTypes)
+          // Capability summary (not a fixed post type — composition is inferred from media)
+          mediaSupport: Object.entries(account.supportedPostTypes)
             .filter(([, supported]) => supported)
-            .map(([type]) => type)
+            .map(([kind]) => kind)
             .join(", "),
         })),
       );
@@ -371,8 +369,9 @@ const postCommand = program
 
 postCommand
   .command("create")
-  .description("Create a draft, scheduled post, or immediate publish")
-  .requiredOption("--type <type>", "Post type (text, image, video)")
+  .description(
+    "Create a draft, scheduled post, or immediate publish (composition inferred from media)",
+  )
   .option("--content <text>", "Shared/default post content")
   .option(
     "--targets <json>",
@@ -396,7 +395,6 @@ postCommand
       const delivery = resolveDelivery(options);
 
       const payload: CreatePostInput = {
-        type: options.type,
         ...(options.content !== undefined ? { content: options.content } : {}),
         ...(targets !== undefined ? { targets } : {}),
         ...(delivery !== undefined ? { delivery } : {}),
@@ -460,7 +458,6 @@ postCommand
       printOutput([
         {
           id: response.post.id,
-          type: response.post.type,
           status: response.post.status,
           targets: response.post.targets.length,
           scheduledAt: response.post.scheduledAt,
@@ -477,7 +474,6 @@ postCommand
   .command("update")
   .description("Update a draft or scheduled post")
   .argument("<postId>", "Post ID")
-  .option("--type <type>", "Post type (text, image, video)")
   .option("--content <text>", "Shared/default post content")
   .option("--targets <json>", "Replacement PostTarget[] JSON")
   .option("--delivery <mode>", "Delivery mode: draft, now, or scheduled")
@@ -497,7 +493,6 @@ postCommand
       const targets = parseTargets(options.targets);
       const delivery = resolveDelivery(options);
       const input: UpdatePostInput = {
-        ...(options.type !== undefined ? { type: options.type } : {}),
         ...(options.content !== undefined ? { content: options.content } : {}),
         ...(targets !== undefined ? { targets } : {}),
         ...(delivery !== undefined ? { delivery } : {}),
@@ -563,7 +558,6 @@ program
   .option("--page <page>", "Page number")
   .option("--limit <limit>", "Items per page")
   .option("--status <status>", "Filter by post status")
-  .option("--type <type>", "Filter by post type")
   .option("--json", "Output JSON")
   .action(async (options: PostsOptions) => {
     try {
@@ -572,7 +566,6 @@ program
         page: options.page ? Number(options.page) : undefined,
         limit: options.limit ? Number(options.limit) : undefined,
         status: options.status,
-        type: options.type,
       });
 
       if (options.json) {
@@ -583,7 +576,6 @@ program
       printOutput(
         response.posts.map((post) => ({
           id: post.id,
-          type: post.type,
           status: post.status,
           targets: post.targets.length,
           scheduledAt: post.scheduledAt,
