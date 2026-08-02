@@ -632,6 +632,12 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
               },
             ],
           },
+          tiktokAutoAddMusic: {
+            enabled: true,
+            label: "Auto-add recommended music",
+            description: "Let TikTok add recommended music to this photo post.",
+            postTypes: ["image"],
+          },
           tiktokDisableComment: {
             enabled: true,
             label: "Allow comments",
