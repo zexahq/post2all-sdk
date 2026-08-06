@@ -204,7 +204,7 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
     },
     facebook: {
       name: "Facebook",
-      releaseStatus: "coming_soon",
+      releaseStatus: "public",
       capability: {
         postTypes: {
           text: true,
