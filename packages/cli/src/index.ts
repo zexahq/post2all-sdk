@@ -472,7 +472,7 @@ postCommand
 
 postCommand
   .command("update")
-  .description("Update a draft or scheduled post")
+  .description("Update a draft, scheduled, failed, or partially failed post")
   .argument("<postId>", "Post ID")
   .option("--content <text>", "Shared/default post content")
   .option("--targets <json>", "Replacement PostTarget[] JSON")

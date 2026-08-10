@@ -115,7 +115,7 @@ post2all post cancel post_abc
 post2all post delete post_abc
 ```
 
-Only draft and scheduled posts can be updated. Arrays supplied to update replace their previous values.
+Draft, scheduled, failed, and partially failed posts can be updated while retained media is available. Arrays supplied to update replace their previous values.
 
 ## Main flags
 

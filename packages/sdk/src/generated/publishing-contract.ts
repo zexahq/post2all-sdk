@@ -558,7 +558,7 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
           ],
           maxVideoBytes: 1073741824,
           maxImageBytes: 20971520,
-          maxImageWidth: 1920,
+          maxImageWidth: 1080,
           maxImageHeight: 1920,
           maxImagePixels: 2073600,
           minVideoWidth: 360,

@@ -168,7 +168,7 @@ post2all posts --status scheduled --limit 100 --json
 post2all post get <postId> --json
 ```
 
-Only draft and scheduled posts can be updated. Supplied target and media arrays replace their previous values:
+Draft, scheduled, failed, and partially failed posts can be updated while retained media is available. Supplied target and media arrays replace their previous values:
 
 ```bash
 post2all post update <postId> \
