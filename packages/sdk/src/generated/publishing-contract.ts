@@ -533,7 +533,7 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
     },
     tiktok: {
       name: "TikTok",
-      releaseStatus: "coming_soon",
+      releaseStatus: "public",
       capability: {
         postTypes: {
           text: false,
