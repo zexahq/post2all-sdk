@@ -126,7 +126,7 @@ await client.createPost({
 - `listPosts(input?)`
 - `getPost(postId)`
 - `updatePost(postId, input)`
-- `deletePost(postId)`
+- `deletePost(postId)` — removes the post from Post2All; already-published social content remains live
 - `cancelPost(postId)`
 
 ## Errors

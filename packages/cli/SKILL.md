@@ -1,6 +1,6 @@
 ---
 name: post2all
-description: Create, schedule, inspect, update, cancel, and delete social posts through the post2all CLI.
+description: Create, schedule, inspect, update, cancel, and manage Post2All posts through the post2all CLI.
 allowed-tools: Bash(post2all:*)
 ---
 
@@ -32,7 +32,7 @@ List connected accounts before creating targets. Never guess an account ID or pl
 post2all accounts --json
 ```
 
-Use drafts for review-oriented requests. Publish immediately only when the user explicitly requests it. Confirm destructive deletes unless the user already clearly identified the post and requested deletion.
+Use drafts for review-oriented requests. Publish immediately only when the user explicitly requests it. Confirm destructive Post2All deletions unless the user already clearly identified the post and requested deletion. Deleting a Post2All post does not delete content already published to social platforms.
 
 ## Canonical target model
 
@@ -191,12 +191,14 @@ Publish an existing draft immediately:
 post2all post update <postId> --delivery now --json
 ```
 
-Delete permanently:
+Delete from Post2All permanently:
 
 ```bash
 post2all post get <postId> --json
 post2all post delete <postId> --json
 ```
+
+This cancels any pending schedule and removes the Post2All record. Content already published to social platforms remains live there.
 
 ## Status filters
 

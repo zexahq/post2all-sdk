@@ -115,6 +115,8 @@ post2all post cancel post_abc
 post2all post delete post_abc
 ```
 
+`post delete` removes the record from Post2All and cancels any pending schedule. Content already published to social platforms remains live there.
+
 Draft, scheduled, failed, and partially failed posts can be updated while retained media is available. Arrays supplied to update replace their previous values.
 
 ## Main flags

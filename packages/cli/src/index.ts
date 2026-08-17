@@ -514,7 +514,7 @@ postCommand
 
 postCommand
   .command("delete")
-  .description("Delete a post")
+  .description("Delete a post from Post2All (published social posts stay live)")
   .argument("<postId>", "Post ID")
   .option("--json", "Output JSON")
   .action(async (postId: string, options: { json?: boolean }) => {
@@ -526,7 +526,7 @@ postCommand
         console.log(JSON.stringify(response, null, 2));
         return;
       }
-      console.log(`Post deleted: ${response.success}`);
+      console.log(`Post removed from Post2All: ${response.success}`);
     } catch (error) {
       handleError(error);
     }
