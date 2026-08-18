@@ -12,6 +12,8 @@ post2all config whoami
 
 Credentials are resolved in this order: `--api-key`, `POST2ALL_API_KEY`, then `~/.config/post2all/config.json`.
 
+Check the installed version with `post2all --version`. On interactive commands, the CLI checks npm for a newer release at most once every 24 hours and prints an update command when one is available. It never auto-installs updates, skips checks for `--json`/non-interactive usage, and can be disabled with `POST2ALL_DISABLE_UPDATE_CHECK=1`.
+
 ## Discover accounts
 
 ```bash
@@ -22,7 +24,7 @@ post2all account publishing-options acc_discord_123 --json
 
 Call `constraints` once before composing to load every platform limit and connected-account text override. Use the returned account ID and platform when constructing targets. Per-account publishing options are only needed for dynamic choices such as Discord channels and TikTok privacy levels.
 
-Treat publishing options as the source of truth for text, media, and field constraints. Limits can be account-specific—for example, X paid tiers receive a different text limit. Do not pass `--type`. Composition is inferred from attached media; mixed image/video is allowed only when platform `media.allowMixedMedia` is true.
+Treat publishing options as the source of truth for text, media, and field constraints. Limits can be account-specific—for example, X paid tiers receive a different text limit. Do not pass `--type`. Composition is inferred from attached media; mixed image/video is allowed only when platform `media.allowMixedMedia` is true. When `capability.media.altText` is present, use `--media` to set optional alt text on each media item. X intentionally does not expose that capability.
 
 ## Create posts
 
@@ -79,7 +81,7 @@ post2all media upload ./video.mp4 --json
 
 post2all post create \
   --content "Product walkthrough" \
-  --media-ids media_123 \
+  --media '[{"id":"media_123","altText":"Product walkthrough showing the publishing workflow"}]' \
   --targets '[
     {
       "platform": "youtube",
@@ -108,8 +110,9 @@ post2all post update post_abc \
 post2all post update post_abc \
   --targets '[{"platform":"linkedin","accountId":"acc_linkedin_123","settings":{}}]'
 
-# Replace attached media
-post2all post update post_abc --media-ids media_456
+# Replace attached media and set per-media alt text
+post2all post update post_abc \
+  --media '[{"id":"media_456","altText":"Calendar view showing scheduled posts"}]'
 
 post2all post cancel post_abc
 
@@ -134,12 +137,14 @@ Draft, scheduled, failed, and partially failed posts can be updated while retain
 | `--targets <json>`     | `PostTarget[]` containing `platform`, `accountId`, and platform-specific `settings` |
 | `--delivery <mode>`    | `draft`, `now`, or `scheduled`                                                      |
 | `--scheduled-at <iso>` | Required for scheduled delivery; must include `Z` or an explicit offset             |
-| `--media-ids <ids>`    | Comma-separated IDs returned by `media upload`                                      |
+| `--media <json>`       | Preferred media array with `id` and optional per-item `altText`                     |
+| `--media-ids <ids>`    | Deprecated compatibility input for comma-separated IDs from `media upload`          |
 | `--json`               | Return machine-readable JSON                                                        |
 
-`--status` remains as a deprecated alias for `draft`, `scheduled`, and `publish_now`; new integrations should use `--delivery`.
+`--status` remains as a deprecated alias for `draft`, `scheduled`, and `publish_now`; new integrations should use `--delivery`. Do not send `--media` and `--media-ids` together.
 
 ## Documentation
 
+- [Changelog](https://github.com/zexahq/post2all-sdk/blob/main/CHANGELOG.md)
 - [Agent skill](https://www.skills.sh/zexahq/post2all-agent/post2all)
 - [REST API reference](https://www.post2all.com/docs/api-reference)

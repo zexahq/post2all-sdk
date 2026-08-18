@@ -131,14 +131,14 @@ Upload local files first and use the returned media IDs:
 post2all media upload ./photo.jpg --json
 
 post2all post create \
-  --media-ids media_123 \
+  --media '[{"id":"media_123","altText":"Product dashboard with weekly engagement chart"}]' \
   --content "Photo update" \
-  --targets '[{"platform":"instagram","accountId":"acc_instagram_123","settings":{"altText":"Product dashboard"}}]' \
+  --targets '[{"platform":"instagram","accountId":"acc_instagram_123","settings":{}}]' \
   --delivery now \
   --json
 ```
 
-Attach image and/or video media IDs as needed. Do not pass local paths directly to post creation. Mixed media only when platform allowMixedMedia is true.
+Attach image and/or video media IDs as needed. Do not pass local paths directly to post creation. Mixed media only when platform `allowMixedMedia` is true. When `publishing_schema`/`constraints` exposes `capability.media.altText`, set optional `altText` on each media item and obey its `mediaTypes` and `maxLength`. X intentionally does not expose media alt text. `--media-ids` remains a compatibility input for ID-only media; do not combine it with `--media`.
 
 ## Platform settings
 
@@ -147,19 +147,19 @@ Supported target settings include:
 - Twitter/X: `caption`
 - LinkedIn: `caption`
 - YouTube: `caption`, `title`, `description`, `tags`, `privacyStatus`, `categoryId`, `thumbnail`, `thumbnailTimestamp`
-- Instagram: `caption`, `altText`, `thumbnail`, `thumbnailTimestamp`
+- Instagram: `caption`, `thumbnail`, `thumbnailTimestamp`
 - Facebook: `caption`
-- Pinterest: `caption`, `boardId`, `altText`, `thumbnail`, `thumbnailTimestamp`
-- Threads: `caption`, `altText`, `topicTag`
+- Pinterest: `caption`, `boardId`, `thumbnail`, `thumbnailTimestamp`
+- Threads: `caption`, `topicTag`
 - Dribbble: `caption`, `title`, `description`, `tags`, `teamId`, `lowProfile`
-- Bluesky: `caption`, `altText`
+- Bluesky: `caption`
 - Telegram: `caption`, `linkUrl`, `linkText`, `disableNotification`, `protectContent`
 - Discord: `caption`, `channelId`, `autoCrosspost`
 - TikTok: `caption`, `title`, `description`, `tiktokContentPostingMethod`, `tiktokPrivacyLevel`, `tiktokDisableComment`, `tiktokDisableDuet`, `tiktokDisableStitch`
 
 For TikTok, `tiktokContentPostingMethod` is `DIRECT_POST` or `UPLOAD`. Upload sends media to the creator's TikTok inbox for editing and is reported as a successful `completed` post with an `uploaded` target.
 
-Do not invent fields. Prefer the main content for shared copy and use target `caption` only for account-specific overrides.
+Do not invent fields. Prefer the main content for shared copy and use target `caption` only for account-specific overrides. Alt text is media metadata, not a target setting.
 
 ## Read and update posts
 

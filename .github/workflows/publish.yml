@@ -14,12 +14,12 @@ on:
         type: boolean
         default: true
       version_sdk:
-        description: "Version bump for @post2all/sdk (e.g. patch, minor, 0.2.0)"
+        description: "Version bump for @post2all/sdk (e.g. patch, minor, 0.3.1). Leave blank to publish package.json version unchanged."
         required: false
         type: string
         default: ""
       version_cli:
-        description: "Version bump for @post2all/cli (e.g. patch, minor, 0.2.0)"
+        description: "Version bump for @post2all/cli (e.g. patch, minor, 0.3.1). Leave blank to publish package.json version unchanged."
         required: false
         type: string
         default: ""
@@ -49,14 +49,15 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Bump version
+      - name: Bump SDK version and sync CLI dependency
         if: inputs.version_sdk != ''
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           pnpm --filter @post2all/sdk exec npm version ${{ inputs.version_sdk }} --no-git-tag-version
           VERSION=$(node -p "require('./packages/sdk/package.json').version")
-          git add packages/sdk/package.json
+          pnpm --filter @post2all/cli add "@post2all/sdk@workspace:^$VERSION"
+          git add packages/sdk/package.json packages/cli/package.json pnpm-lock.yaml
           git commit -m "chore(sdk): bump to v$VERSION"
           git push
 

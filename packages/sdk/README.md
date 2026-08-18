@@ -89,7 +89,7 @@ console.log(options.accounts[0]?.destinations);
 
 `capability` is the authoritative, account-specific constraint set. Read it before composing or validating a post instead of hard-coding platform limits. For example, an X account's `capability.text.maxLength` reflects whether that account is Free, Basic, Premium, or Premium+.
 
-Do not send a fixed post type. Composition is inferred from attached media. Mixed image/video is allowed only when platform `media.allowMixedMedia` is true.
+Do not send a fixed post type. Composition is inferred from attached media. Mixed image/video is allowed only when platform `media.allowMixedMedia` is true. When `capability.media.altText` is present, each attached media item may include its own `altText`; use the returned media types and maximum length. X intentionally does not expose media alt text.
 
 ## Media
 
@@ -98,7 +98,12 @@ const { media } = await client.uploadMedia("./video.mp4");
 
 await client.createPost({
   content: "Product walkthrough",
-  mediaIds: [media.id],
+  media: [
+    {
+      id: media.id,
+      altText: "Product walkthrough showing the publishing workflow",
+    },
+  ],
   targets: [
     {
       platform: "youtube",
@@ -112,6 +117,8 @@ await client.createPost({
   delivery: { mode: "now" },
 });
 ```
+
+`mediaIds` remains accepted for compatibility when you only need to attach media IDs. New integrations should prefer `media`, especially when setting per-media alt text. Do not send both in one request.
 
 ## API
 
@@ -135,3 +142,7 @@ Use `getPost(postId)` first and check `target.deletion.available`. When it is `f
 ## Errors
 
 All API and response-validation failures throw `Post2allApiError`. Validation error responses may include field-level issues such as `targets.0.settings.channelId`.
+
+## Changelog
+
+See the repository [changelog](https://github.com/zexahq/post2all-sdk/blob/main/CHANGELOG.md) for versioned SDK and CLI changes, deprecations, and compatibility notes.

@@ -65,6 +65,10 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
             "video/mp4",
           ],
           maxVideoBytes: 524288000,
+          altText: {
+            mediaTypes: ["image"],
+            maxLength: 4086,
+          },
           description:
             "Up to 20 images or 1 MP4 video (images and video cannot be mixed)",
         },
@@ -189,6 +193,10 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
           allowedMimeTypes: ["image/jpeg", "video/mp4", "video/quicktime"],
           maxImageBytes: 8388608,
           maxVideoBytes: 1073741824,
+          altText: {
+            mediaTypes: ["image"],
+            maxLength: 1000,
+          },
           description:
             "1–10 media items: images, videos, or a mix (single video publishes as a Reel; 2+ items as a carousel)",
         },
@@ -197,11 +205,6 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
             enabled: true,
             maxLength: 2200,
             postTypes: ["image", "video"],
-          },
-          altText: {
-            enabled: true,
-            maxLength: 1000,
-            postTypes: ["image"],
           },
         },
       },
@@ -256,6 +259,10 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
           maxImages: 1,
           maxVideos: 1,
           allowMixedMedia: false,
+          altText: {
+            mediaTypes: ["image", "video"],
+            maxLength: 500,
+          },
           description: "1 image or 1 video per pin",
         },
         fields: {
@@ -276,11 +283,6 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
           },
           boardId: {
             enabled: true,
-            postTypes: ["image", "video"],
-          },
-          altText: {
-            enabled: true,
-            maxLength: 500,
             postTypes: ["image", "video"],
           },
           thumbnail: {
@@ -318,6 +320,10 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
           maxImages: 20,
           maxVideos: 20,
           allowMixedMedia: true,
+          altText: {
+            mediaTypes: ["image", "video"],
+            maxLength: 1000,
+          },
           description:
             "Text, or a carousel of up to 20 images, videos, or a mix",
         },
@@ -325,11 +331,6 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
           caption: {
             enabled: true,
             maxLength: 500,
-          },
-          altText: {
-            enabled: true,
-            maxLength: 1000,
-            postTypes: ["image"],
           },
           topicTag: {
             enabled: true,
@@ -442,6 +443,10 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
           ],
           maxImageBytes: 2097152,
           maxVideoBytes: 104857600,
+          altText: {
+            mediaTypes: ["image", "video"],
+            maxLength: 10000,
+          },
           description:
             "Text-only, up to 4 images (2MB each), or 1 MP4 video (100MB); images and video cannot be mixed",
         },
@@ -449,11 +454,6 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
           caption: {
             enabled: true,
             maxLength: 300,
-          },
-          altText: {
-            enabled: true,
-            maxLength: 10000,
-            postTypes: ["image"],
           },
         },
       },
@@ -530,6 +530,10 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
           maxImageBytes: 10485760,
           maxVideoBytes: 10485760,
           maxTotalBytes: 25165824,
+          altText: {
+            mediaTypes: ["image", "video"],
+            maxLength: 1024,
+          },
           description:
             "Up to 10 mixed attachments, 10 MiB each and 24 MiB total",
         },

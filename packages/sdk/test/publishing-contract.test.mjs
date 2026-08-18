@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { PUBLIC_PUBLISHING_CONTRACT } from "../dist/generated/publishing-contract.js";
 import {
+  instagramSettingsSchema,
   platformSchema,
+  postMediaInputSchema,
   tiktokSettingsSchema,
   youtubeSettingsSchema,
 } from "../dist/types.js";
@@ -44,6 +46,35 @@ test("generated contract exposes only public published deletion", () => {
   assert.equal(
     PUBLIC_PUBLISHING_CONTRACT.platforms.tiktok.publishedDeletion.available,
     false,
+  );
+});
+
+test("generated contract exposes per-media alt text without target-level alt text", () => {
+  assert.deepEqual(
+    PUBLIC_PUBLISHING_CONTRACT.platforms.linkedin.capability.media.altText,
+    {
+      mediaTypes: ["image"],
+      maxLength: 4086,
+    },
+  );
+  assert.deepEqual(
+    PUBLIC_PUBLISHING_CONTRACT.platforms.threads.capability.media.altText,
+    {
+      mediaTypes: ["image", "video"],
+      maxLength: 1000,
+    },
+  );
+  assert.equal(
+    PUBLIC_PUBLISHING_CONTRACT.platforms.twitter.capability.media.altText,
+    undefined,
+  );
+  assert.equal(
+    postMediaInputSchema.parse({ id: "media_1", altText: "Dashboard overview" })
+      .altText,
+    "Dashboard overview",
+  );
+  assert.throws(() =>
+    instagramSettingsSchema.parse({ altText: "legacy target alt" }),
   );
 });
 

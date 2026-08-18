@@ -58,21 +58,29 @@ const mediaContentTypes: Record<string, string> = {
   ".mkv": "video/x-matroska",
 };
 
+export type Post2allClientInfo = {
+  name: "cli";
+  version?: string;
+};
+
 export type Post2allClientOptions = {
   apiKey: string;
   baseUrl?: string;
   fetchImplementation?: typeof fetch;
+  clientInfo?: Post2allClientInfo;
 };
 
 export class Post2allClient {
   private readonly apiKey: string;
   private readonly baseUrl: string;
   private readonly fetchImplementation: typeof fetch;
+  private readonly clientInfo?: Post2allClientInfo;
 
   public constructor(options: Post2allClientOptions) {
     this.apiKey = options.apiKey;
     this.baseUrl = options.baseUrl ?? defaultBaseUrl;
     this.fetchImplementation = options.fetchImplementation ?? fetch;
+    this.clientInfo = options.clientInfo;
   }
 
   public async listAccounts(): Promise<ListAccountsResponse> {
@@ -325,6 +333,12 @@ export class Post2allClient {
       ...init,
       headers: {
         "x-api-key": this.apiKey,
+        ...(this.clientInfo
+          ? { "x-post2all-client": this.clientInfo.name }
+          : {}),
+        ...(this.clientInfo?.version
+          ? { "x-post2all-client-version": this.clientInfo.version }
+          : {}),
         ...init?.headers,
       },
     });

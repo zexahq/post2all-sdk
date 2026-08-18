@@ -241,14 +241,26 @@ export const deliverySchema = z.discriminatedUnion("mode", [
     .strict(),
 ]);
 
+export const postMediaInputSchema = z
+  .object({
+    id: z.string().min(1),
+    altText: z.string().optional(),
+  })
+  .strict();
+
 function addPostContentIssues(
-  value: { content?: string; mediaIds?: string[] },
+  value: {
+    content?: string;
+    media?: z.infer<typeof postMediaInputSchema>[];
+    mediaIds?: string[];
+  },
   ctx: z.RefinementCtx,
   requireComplete: boolean,
 ): void {
   if (!requireComplete) return;
-  const mediaIds = value.mediaIds ?? [];
-  if (mediaIds.length === 0 && !value.content?.trim()) {
+  const hasMedia =
+    (value.media?.length ?? 0) > 0 || (value.mediaIds?.length ?? 0) > 0;
+  if (!hasMedia && !value.content?.trim()) {
     ctx.addIssue({
       code: "custom",
       path: ["content"],
@@ -260,13 +272,21 @@ function addPostContentIssues(
 export const createPostInputSchema = z
   .object({
     content: z.string().optional(),
-    mediaIds: z.array(z.string().min(1)).default([]),
+    media: z.array(postMediaInputSchema).optional(),
+    mediaIds: z.array(z.string().min(1)).optional(),
     targets: postTargetsSchema.default([]),
     delivery: deliverySchema.default({ mode: "draft" }),
   })
   .strict()
   .superRefine((value, ctx) => {
     addPostContentIssues(value, ctx, value.delivery.mode !== "draft");
+    if ((value.media?.length ?? 0) > 0 && (value.mediaIds?.length ?? 0) > 0) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["media"],
+        message: "Use media or mediaIds, not both",
+      });
+    }
     if (value.delivery.mode !== "draft" && value.targets.length === 0) {
       ctx.addIssue({
         code: "custom",
@@ -280,13 +300,25 @@ export const createPostInputSchema = z
 export const updatePostInputSchema = z
   .object({
     content: z.string().optional(),
+    media: z.array(postMediaInputSchema).optional(),
     mediaIds: z.array(z.string().min(1)).optional(),
     targets: postTargetsSchema.optional(),
     delivery: deliverySchema.optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
-    if (value.mediaIds !== undefined || value.content !== undefined) {
+    if (value.media !== undefined && value.mediaIds !== undefined) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["media"],
+        message: "Use media or mediaIds, not both",
+      });
+    }
+    if (
+      value.media !== undefined ||
+      value.mediaIds !== undefined ||
+      value.content !== undefined
+    ) {
       addPostContentIssues(
         value,
         ctx,
@@ -389,6 +421,12 @@ const platformMediaCapabilitySchema = z
     requiredImageDimensions: z
       .array(z.object({ width: z.number(), height: z.number() }))
       .optional(),
+    altText: z
+      .object({
+        mediaTypes: z.array(z.enum(["image", "video"])),
+        maxLength: z.number(),
+      })
+      .optional(),
     description: z.string(),
   })
   .passthrough();
@@ -472,7 +510,7 @@ export const postMediaSchema = z
     path: z.string(),
     url: z.string().optional(),
     key: z.string().optional(),
-    alt: z.string().optional(),
+    altText: z.string().optional(),
     thumbnail: z.string().optional(),
     thumbnailUrl: z.string().optional(),
     thumbnailTimestamp: z.number().optional(),
@@ -624,6 +662,7 @@ export const confirmMediaUploadResponseSchema = z.object({
 export type PostType = z.infer<typeof postTypeSchema>;
 export type PostStatus = z.infer<typeof postStatusSchema>;
 export type Delivery = z.infer<typeof deliverySchema>;
+export type PostMediaInput = z.infer<typeof postMediaInputSchema>;
 export type TwitterSettings = z.infer<typeof twitterSettingsSchema>;
 export type LinkedinSettings = z.infer<typeof linkedinSettingsSchema>;
 export type YoutubeSettings = z.infer<typeof youtubeSettingsSchema>;

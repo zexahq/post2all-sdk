@@ -46,5 +46,6 @@ pnpm run lint
 
 ## Related
 
+- [Changelog](./CHANGELOG.md) — versioned SDK and CLI changes and deprecations
 - [post2all](https://www.post2all.com) — social media scheduling platform
 - [API Reference](https://www.post2all.com/docs/api-reference) — full REST API documentation

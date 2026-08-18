@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 
+import { readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 import {
   Post2allApiError,
   Post2allClient,
+  postMediaInputSchema,
   postTargetsSchema,
   type ApiErrorBody,
   type CreatePostInput,
@@ -19,10 +21,30 @@ const defaultBaseUrl =
   process.env.POST2ALL_API_URL ??
   process.env.POST2ALL_BASE_URL ??
   "https://www.post2all.com/api/v1";
+const CLI_PACKAGE_NAME = "@post2all/cli";
+const UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const UPDATE_CHECK_TIMEOUT_MS = 750;
+const CLI_VERSION = (() => {
+  try {
+    const manifest = JSON.parse(
+      readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+    ) as { version?: unknown };
+    return typeof manifest.version === "string" ? manifest.version : "unknown";
+  } catch {
+    return "unknown";
+  }
+})();
 
 type CliConfig = {
   apiKey?: string;
   baseUrl?: string;
+};
+
+type CliUpdateCache = {
+  checkedAt?: number;
+  latestVersion?: string;
+  notifiedAt?: number;
+  notifiedVersion?: string;
 };
 
 type RootOptions = {
@@ -42,6 +64,7 @@ type DeliveryOptions = {
 type PostCreateOptions = DeliveryOptions & {
   content?: string;
   targets?: string;
+  media?: string;
   mediaIds?: string;
   json?: boolean;
 };
@@ -63,6 +86,7 @@ type PostsOptions = {
 type PostUpdateOptions = DeliveryOptions & {
   content?: string;
   targets?: string;
+  media?: string;
   mediaIds?: string;
   json?: boolean;
 };
@@ -74,6 +98,107 @@ function resolveConfigPath(): string {
   }
 
   return join(home, ".config", "post2all", "config.json");
+}
+
+function resolveUpdateCachePath(): string {
+  return join(dirname(resolveConfigPath()), "update-check.json");
+}
+
+function parseVersion(value: string): [number, number, number] | null {
+  const match = /^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/.exec(value.trim());
+  if (!match) return null;
+  return [Number(match[1]), Number(match[2]), Number(match[3])];
+}
+
+function isNewerVersion(candidate: string, current: string): boolean {
+  const next = parseVersion(candidate);
+  const active = parseVersion(current);
+  if (!next || !active) return false;
+
+  for (let index = 0; index < 3; index += 1) {
+    if (next[index]! > active[index]!) return true;
+    if (next[index]! < active[index]!) return false;
+  }
+  return false;
+}
+
+async function loadUpdateCache(): Promise<CliUpdateCache> {
+  try {
+    return JSON.parse(
+      await readFile(resolveUpdateCachePath(), "utf8"),
+    ) as CliUpdateCache;
+  } catch {
+    return {};
+  }
+}
+
+async function saveUpdateCache(cache: CliUpdateCache): Promise<void> {
+  try {
+    const path = resolveUpdateCachePath();
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(path, JSON.stringify(cache, null, 2), "utf8");
+  } catch {
+    // Update checks must never affect CLI commands.
+  }
+}
+
+async function fetchLatestCliVersion(): Promise<string | undefined> {
+  try {
+    const response = await fetch(
+      `https://registry.npmjs.org/${encodeURIComponent(CLI_PACKAGE_NAME)}/latest`,
+      { signal: AbortSignal.timeout(UPDATE_CHECK_TIMEOUT_MS) },
+    );
+    if (!response.ok) return undefined;
+    const body = (await response.json()) as { version?: unknown };
+    return typeof body.version === "string" ? body.version : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function maybeNotifyCliUpdate(): Promise<void> {
+  if (
+    CLI_VERSION === "unknown" ||
+    !process.stderr.isTTY ||
+    process.env.CI ||
+    process.env.POST2ALL_DISABLE_UPDATE_CHECK === "1" ||
+    process.argv.includes("--json") ||
+    process.argv.includes("--help") ||
+    process.argv.includes("-h") ||
+    process.argv.includes("--version") ||
+    process.argv.includes("-V")
+  ) {
+    return;
+  }
+
+  const now = Date.now();
+  const cache = await loadUpdateCache();
+  let latestVersion = cache.latestVersion;
+  let cacheChanged = false;
+
+  if (!cache.checkedAt || now - cache.checkedAt >= UPDATE_CHECK_INTERVAL_MS) {
+    latestVersion = (await fetchLatestCliVersion()) ?? latestVersion;
+    cache.checkedAt = now;
+    cache.latestVersion = latestVersion;
+    cacheChanged = true;
+  }
+
+  if (
+    latestVersion &&
+    isNewerVersion(latestVersion, CLI_VERSION) &&
+    (cache.notifiedVersion !== latestVersion ||
+      !cache.notifiedAt ||
+      now - cache.notifiedAt >= UPDATE_CHECK_INTERVAL_MS)
+  ) {
+    console.error(
+      `\nUpdate available: post2all CLI ${CLI_VERSION} → ${latestVersion}\nRun: npm install -g @post2all/cli@latest`,
+    );
+    cache.notifiedVersion = latestVersion;
+    cache.notifiedAt = now;
+    cacheChanged = true;
+  }
+
+  if (cacheChanged) await saveUpdateCache(cache);
 }
 
 async function loadConfig(): Promise<CliConfig> {
@@ -112,6 +237,10 @@ async function createClient(rootOptions: RootOptions): Promise<Post2allClient> {
       process.env.POST2ALL_API_URL ??
       config.baseUrl ??
       defaultBaseUrl,
+    clientInfo: {
+      name: "cli",
+      ...(CLI_VERSION !== "unknown" ? { version: CLI_VERSION } : {}),
+    },
   });
 }
 
@@ -129,6 +258,32 @@ function parseCsv(input: string): string[] {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function parsePostMedia(
+  input?: string,
+): NonNullable<CreatePostInput["media"]> | undefined {
+  if (input === undefined) return undefined;
+
+  let value: unknown;
+  try {
+    value = JSON.parse(input);
+  } catch {
+    throw new Error("media must be valid JSON");
+  }
+  if (!Array.isArray(value)) {
+    throw new Error("media must be a JSON array");
+  }
+
+  return value.map((item, index) => {
+    const parsed = postMediaInputSchema.safeParse(item);
+    if (!parsed.success) {
+      throw new Error(
+        `Invalid media item ${index + 1}: ${parsed.error.message}`,
+      );
+    }
+    return parsed.data;
+  });
 }
 
 function parseTargets(input?: string): PostTarget[] | undefined {
@@ -216,6 +371,7 @@ const program = new Command();
 program
   .name("post2all")
   .description("post2all CLI")
+  .version(CLI_VERSION)
   .option("--api-key <apiKey>", "API key")
   .option("--base-url <baseUrl>", "Override API base URL");
 
@@ -382,7 +538,14 @@ postCommand
     "--scheduled-at <isoDate>",
     "Timezone-aware ISO date for scheduled delivery",
   )
-  .option("--media-ids <ids>", "Comma-separated IDs from `media upload`")
+  .option(
+    "--media <json>",
+    "Post media JSON array with id and optional altText",
+  )
+  .option(
+    "--media-ids <ids>",
+    "Deprecated: comma-separated IDs from `media upload`",
+  )
   .option(
     "--status <status>",
     "Deprecated alias: draft, scheduled, or publish_now",
@@ -393,11 +556,16 @@ postCommand
       const client = await createClient(program.opts<RootOptions>());
       const targets = parseTargets(options.targets);
       const delivery = resolveDelivery(options);
+      const media = parsePostMedia(options.media);
+      if (media !== undefined && options.mediaIds !== undefined) {
+        throw new Error("Use --media or --media-ids, not both");
+      }
 
       const payload: CreatePostInput = {
         ...(options.content !== undefined ? { content: options.content } : {}),
         ...(targets !== undefined ? { targets } : {}),
         ...(delivery !== undefined ? { delivery } : {}),
+        ...(media !== undefined ? { media } : {}),
         ...(options.mediaIds !== undefined
           ? { mediaIds: parseCsv(options.mediaIds) }
           : {}),
@@ -481,7 +649,14 @@ postCommand
     "--scheduled-at <isoDate>",
     "Timezone-aware ISO date for scheduled delivery",
   )
-  .option("--media-ids <ids>", "Replacement comma-separated media IDs")
+  .option(
+    "--media <json>",
+    "Replacement post media JSON array with id and optional altText",
+  )
+  .option(
+    "--media-ids <ids>",
+    "Deprecated: replacement comma-separated media IDs",
+  )
   .option(
     "--status <status>",
     "Deprecated alias: draft, scheduled, or publish_now",
@@ -492,10 +667,15 @@ postCommand
       const client = await createClient(program.opts<RootOptions>());
       const targets = parseTargets(options.targets);
       const delivery = resolveDelivery(options);
+      const media = parsePostMedia(options.media);
+      if (media !== undefined && options.mediaIds !== undefined) {
+        throw new Error("Use --media or --media-ids, not both");
+      }
       const input: UpdatePostInput = {
         ...(options.content !== undefined ? { content: options.content } : {}),
         ...(targets !== undefined ? { targets } : {}),
         ...(delivery !== undefined ? { delivery } : {}),
+        ...(media !== undefined ? { media } : {}),
         ...(options.mediaIds !== undefined
           ? { mediaIds: parseCsv(options.mediaIds) }
           : {}),
@@ -625,4 +805,7 @@ program
     }
   });
 
-program.parseAsync(process.argv).catch(handleError);
+program
+  .parseAsync(process.argv)
+  .then(() => maybeNotifyCliUpdate())
+  .catch(handleError);
