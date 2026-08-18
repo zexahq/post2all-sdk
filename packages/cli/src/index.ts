@@ -513,8 +513,42 @@ postCommand
   });
 
 postCommand
+  .command("delete-published")
+  .description(
+    "Delete one published social post without deleting the post2all post",
+  )
+  .argument("<postId>", "Post ID")
+  .requiredOption(
+    "--post-account-id <id>",
+    "Post target ID from `post get <postId> --json`",
+  )
+  .option("--json", "Output JSON")
+  .action(
+    async (
+      postId: string,
+      options: { postAccountId: string; json?: boolean },
+    ) => {
+      try {
+        const client = await createClient(program.opts<RootOptions>());
+        const response = await client.deletePublishedPost(
+          postId,
+          options.postAccountId,
+        );
+
+        if (options.json) {
+          console.log(JSON.stringify(response, null, 2));
+          return;
+        }
+        printOutput([response]);
+      } catch (error) {
+        handleError(error);
+      }
+    },
+  );
+
+postCommand
   .command("delete")
-  .description("Delete a post from Post2All (published social posts stay live)")
+  .description("Delete a post from post2all (published social posts stay live)")
   .argument("<postId>", "Post ID")
   .option("--json", "Output JSON")
   .action(async (postId: string, options: { json?: boolean }) => {
@@ -526,7 +560,7 @@ postCommand
         console.log(JSON.stringify(response, null, 2));
         return;
       }
-      console.log(`Post removed from Post2All: ${response.success}`);
+      console.log(`Post removed from post2all: ${response.success}`);
     } catch (error) {
       handleError(error);
     }

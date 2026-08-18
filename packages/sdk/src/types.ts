@@ -485,6 +485,15 @@ export const postMediaSchema = z
   })
   .passthrough();
 
+export const publishedDeletionReasonSchema = z.enum([
+  "not_published",
+  "already_deleted",
+  "not_supported",
+  "not_available",
+  "time_limit_expired",
+  "account_disconnected",
+]);
+
 export const postResponseTargetSchema = z
   .object({
     id: z.string(),
@@ -499,6 +508,12 @@ export const postResponseTargetSchema = z
     status: z
       .enum(["pending", "publishing", "published", "uploaded", "failed"])
       .or(z.string())
+      .optional(),
+    deletion: z
+      .object({
+        available: z.boolean(),
+        reason: publishedDeletionReasonSchema.nullable(),
+      })
       .optional(),
     platformPostId: z.string().nullable().optional(),
     platformPostUrl: z.string().nullable().optional(),
@@ -569,6 +584,11 @@ export const updatePostResponseSchema = z.object({
 
 export const deletePostResponseSchema = z.object({ success: z.boolean() });
 
+export const deletePublishedPostResponseSchema = z.object({
+  success: z.boolean(),
+  status: z.enum(["deleted", "already_deleted"]),
+});
+
 export const cancelPostResponseSchema = z.object({
   post: z.object({
     id: z.string(),
@@ -637,6 +657,12 @@ export type GetPostResponse = z.infer<typeof getPostResponseSchema>;
 export type CreatePostResponse = z.infer<typeof createPostResponseSchema>;
 export type UpdatePostResponse = z.infer<typeof updatePostResponseSchema>;
 export type DeletePostResponse = z.infer<typeof deletePostResponseSchema>;
+export type PublishedDeletionReason = z.infer<
+  typeof publishedDeletionReasonSchema
+>;
+export type DeletePublishedPostResponse = z.infer<
+  typeof deletePublishedPostResponseSchema
+>;
 export type CancelPostResponse = z.infer<typeof cancelPostResponseSchema>;
 export type CreateMediaUploadResponse = z.infer<
   typeof createMediaUploadResponseSchema

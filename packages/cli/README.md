@@ -112,10 +112,18 @@ post2all post update post_abc \
 post2all post update post_abc --media-ids media_456
 
 post2all post cancel post_abc
+
+# Inspect a post, then remove one published social post
+post2all post get post_abc --json
+post2all post delete-published post_abc --post-account-id post_account_1 --json
+
+# Remove only the post2all record
 post2all post delete post_abc
 ```
 
-`post delete` removes the record from Post2All and cancels any pending schedule. Content already published to social platforms remains live there.
+`post get --json` includes `deletion.available` and `deletion.reason` on each target. Use `post delete-published` only after `deletion.available` is `true` and the user confirms the destructive action. Private rollout platforms remain unavailable through the CLI. The post2all post stays intact.
+
+`post delete` removes the record from post2all and cancels any pending schedule. Content already published to social platforms remains live there.
 
 Draft, scheduled, failed, and partially failed posts can be updated while retained media is available. Arrays supplied to update replace their previous values.
 

@@ -43,6 +43,9 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
           },
         },
       },
+      publishedDeletion: {
+        available: true,
+      },
     },
     linkedin: {
       name: "LinkedIn",
@@ -76,6 +79,9 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
             maxLength: 3000,
           },
         },
+      },
+      publishedDeletion: {
+        available: true,
       },
     },
     youtube: {
@@ -163,6 +169,9 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
           },
         },
       },
+      publishedDeletion: {
+        available: false,
+      },
     },
     instagram: {
       name: "Instagram",
@@ -201,6 +210,9 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
           },
         },
       },
+      publishedDeletion: {
+        available: false,
+      },
     },
     facebook: {
       name: "Facebook",
@@ -227,6 +239,9 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
             maxLength: 63206,
           },
         },
+      },
+      publishedDeletion: {
+        available: true,
       },
     },
     pinterest: {
@@ -287,6 +302,9 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
           },
         },
       },
+      publishedDeletion: {
+        available: true,
+      },
     },
     threads: {
       name: "Threads",
@@ -323,6 +341,9 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
             maxLength: 50,
           },
         },
+      },
+      publishedDeletion: {
+        available: false,
       },
     },
     dribbble: {
@@ -397,6 +418,9 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
           },
         },
       },
+      publishedDeletion: {
+        available: true,
+      },
     },
     bluesky: {
       name: "Bluesky",
@@ -437,6 +461,9 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
             postTypes: ["image"],
           },
         },
+      },
+      publishedDeletion: {
+        available: true,
       },
     },
     telegram: {
@@ -484,6 +511,9 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
           },
         },
       },
+      publishedDeletion: {
+        available: true,
+      },
     },
     discord: {
       name: "Discord",
@@ -529,6 +559,9 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
               "Automatically crosspost messages sent to announcement channels.",
           },
         },
+      },
+      publishedDeletion: {
+        available: true,
       },
     },
     tiktok: {
@@ -669,6 +702,9 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
             postTypes: ["image", "video"],
           },
         },
+      },
+      publishedDeletion: {
+        available: false,
       },
     },
   },

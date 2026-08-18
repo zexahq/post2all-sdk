@@ -43,7 +43,7 @@ const { post } = await client.createPost({
 
 `targets` is a discriminated union. Once `platform` is selected, TypeScript and Zod only accept settings supported by that platform.
 
-Platform IDs, settings fields, fixed enums, and limits are generated from the private monorepo's public publishing contract. Do not edit the generated contract file in this repository; the release synchronization job regenerates it.
+Platform IDs, settings fields, fixed enums, limits, and the static `publishedDeletion.available` capability are generated from the private monorepo's public publishing contract. Do not edit the generated contract file in this repository; the release synchronization job regenerates it.
 
 ## Delivery modes
 
@@ -126,8 +126,11 @@ await client.createPost({
 - `listPosts(input?)`
 - `getPost(postId)`
 - `updatePost(postId, input)`
-- `deletePost(postId)` — removes the post from Post2All; already-published social content remains live
+- `deletePublishedPost(postId, postAccountId)` — removes one published social post on a public deletion platform while keeping the post2all post
+- `deletePost(postId)` — removes the post from post2all; already-published social content remains live
 - `cancelPost(postId)`
+
+Use `getPost(postId)` first and check `target.deletion.available`. When it is `false`, `target.deletion.reason` explains why. This runtime state already includes platform rollout, account state, provider IDs, and time limits. Private rollout platforms are never unlocked through API keys.
 
 ## Errors
 

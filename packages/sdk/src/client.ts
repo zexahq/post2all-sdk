@@ -27,6 +27,8 @@ import {
   updatePostResponseSchema,
   type DeletePostResponse,
   deletePostResponseSchema,
+  type DeletePublishedPostResponse,
+  deletePublishedPostResponseSchema,
   type CancelPostResponse,
   cancelPostResponseSchema,
   type ConfirmMediaUploadResponse,
@@ -272,6 +274,34 @@ export class Post2allClient {
     );
 
     return this.parseJson(response, deletePostResponseSchema);
+  }
+
+  public async deletePublishedPost(
+    postId: string,
+    postAccountId: string,
+  ): Promise<DeletePublishedPostResponse> {
+    if (!postId) {
+      throw new Post2allApiError("postId is required", {
+        status: 400,
+        code: "INVALID_REQUEST",
+      });
+    }
+    if (!postAccountId) {
+      throw new Post2allApiError("postAccountId is required", {
+        status: 400,
+        code: "INVALID_REQUEST",
+      });
+    }
+
+    const response = await this.request(
+      `/posts/${encodeURIComponent(postId)}/published`,
+      {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postAccountId }),
+      },
+    );
+    return this.parseJson(response, deletePublishedPostResponseSchema);
   }
 
   public async cancelPost(postId: string): Promise<CancelPostResponse> {
