@@ -36,11 +36,6 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
             enabled: true,
             maxLength: 280,
           },
-          altText: {
-            enabled: true,
-            maxLength: 1000,
-            postTypes: ["image"],
-          },
         },
       },
       publishedDeletion: {

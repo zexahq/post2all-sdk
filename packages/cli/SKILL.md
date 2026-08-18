@@ -144,7 +144,7 @@ Attach image and/or video media IDs as needed. Do not pass local paths directly 
 
 Supported target settings include:
 
-- Twitter/X: `caption`, `altText`
+- Twitter/X: `caption`
 - LinkedIn: `caption`
 - YouTube: `caption`, `title`, `description`, `tags`, `privacyStatus`, `categoryId`, `thumbnail`, `thumbnailTimestamp`
 - Instagram: `caption`, `altText`, `thumbnail`, `thumbnailTimestamp`
