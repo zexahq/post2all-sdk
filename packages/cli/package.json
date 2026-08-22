@@ -32,7 +32,7 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@post2all/sdk": "workspace:^0.3.0",
+    "@post2all/sdk": "workspace:^",
     "commander": "^14.0.1"
   },
   "devDependencies": {
