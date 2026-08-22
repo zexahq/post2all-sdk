@@ -206,6 +206,18 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
             maxLength: 2200,
             postTypes: ["image", "video"],
           },
+          thumbnail: {
+            enabled: true,
+            label: "Video cover",
+            postTypes: ["video"],
+            composerVisible: false,
+          },
+          thumbnailTimestamp: {
+            enabled: true,
+            label: "Cover frame",
+            postTypes: ["video"],
+            composerVisible: false,
+          },
         },
       },
       publishedDeletion: {
