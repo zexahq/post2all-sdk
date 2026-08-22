@@ -640,14 +640,6 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
             label: "Photo post title",
             postTypes: ["image"],
           },
-          description: {
-            enabled: true,
-            maxLength: 4000,
-            label: "Photo post description",
-            description:
-              "Published as the TikTok caption for photo and video posts.",
-            postTypes: ["image"],
-          },
           tiktokPrivacyLevel: {
             enabled: true,
             required: true,

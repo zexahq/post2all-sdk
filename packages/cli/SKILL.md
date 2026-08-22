@@ -155,7 +155,7 @@ Supported target settings include:
 - Bluesky: `caption`
 - Telegram: `caption`, `linkUrl`, `linkText`, `disableNotification`, `protectContent`
 - Discord: `caption`, `channelId`, `autoCrosspost`
-- TikTok: `caption`, `title`, `description`, `tiktokContentPostingMethod`, `tiktokPrivacyLevel`, `tiktokDisableComment`, `tiktokDisableDuet`, `tiktokDisableStitch`
+- TikTok: `caption`, `title`, `tiktokContentPostingMethod`, `tiktokPrivacyLevel`, `tiktokDisableComment`, `tiktokDisableDuet`, `tiktokDisableStitch`
 
 For TikTok, `tiktokContentPostingMethod` is `DIRECT_POST` or `UPLOAD`. Upload sends media to the creator's TikTok inbox for editing and is reported as a successful `completed` post with an `uploaded` target.
 
