@@ -85,6 +85,7 @@ Use account publishing options before rendering or submitting dynamic settings s
 ```ts
 const options = await client.getPublishingOptions(["acc_discord_123"]);
 console.log(options.accounts[0]?.destinations);
+console.log(options.accounts[0]?.boards);
 ```
 
 `capability` is the authoritative, account-specific constraint set. Read it before composing or validating a post instead of hard-coding platform limits. For example, an X account's `capability.text.maxLength` reflects whether that account is Free, Basic, Premium, or Premium+.

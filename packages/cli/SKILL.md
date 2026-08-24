@@ -57,7 +57,7 @@ Use account publishing options only when a selected account needs dynamic settin
 post2all account publishing-options <accountId...> --json
 ```
 
-This is required before selecting values such as a Discord channel or TikTok privacy level.
+This is required before selecting values such as a Pinterest board, Discord channel, or TikTok privacy level.
 
 Use `post2all constraints <accountId...> --json` as the authoritative selected-account publishing schema. Per-account publishing options are for dynamic choices such as Discord channels and TikTok creator restrictions. Post composition is inferred from attached media; do not pass a fixed post type. Mixed media is allowed only when platform media.allowMixedMedia is true.
 
@@ -149,7 +149,7 @@ Supported target settings include:
 - YouTube: `caption`, `title`, `description`, `tags`, `privacyStatus`, `categoryId`, `thumbnail`, `thumbnailTimestamp`
 - Instagram: `caption`, `thumbnail`, `thumbnailTimestamp`
 - Facebook: `caption`
-- Pinterest: `caption`, `boardId`, `thumbnail`, `thumbnailTimestamp`
+- Pinterest: `caption`, `boardId`, `thumbnail`, `thumbnailTimestamp`; select `boardId` from the account's discovered `boards` options
 - Threads: `caption`, `topicTag`
 - Dribbble: `caption`, `title`, `description`, `tags`, `teamId`, `lowProfile`
 - Bluesky: `caption`

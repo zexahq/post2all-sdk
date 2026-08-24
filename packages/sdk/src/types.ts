@@ -400,7 +400,7 @@ const platformFieldCapabilitySchema = z
     options: z
       .array(z.object({ value: z.string(), label: z.string() }))
       .optional(),
-    discoveryKey: z.enum(["destinations", "creatorInfo"]).optional(),
+    discoveryKey: z.enum(["destinations", "boards", "creatorInfo"]).optional(),
     defaultValue: z.union([z.string(), z.boolean(), z.number()]).optional(),
   })
   .passthrough();
@@ -451,6 +451,11 @@ export const platformDestinationSchema = z.object({
   parentId: z.string().nullable().optional(),
 });
 
+export const pinterestBoardSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+});
+
 export const tiktokCreatorInfoSchema = z
   .object({
     creator_avatar_url: z.string().optional(),
@@ -469,6 +474,7 @@ export const getAccountPublishingOptionsResponseSchema = z.object({
   platform: platformSchema,
   name: z.string(),
   capability: platformCapabilitySchema,
+  boards: z.array(pinterestBoardSchema).optional(),
   destinations: z.array(platformDestinationSchema).optional(),
   creatorInfo: tiktokCreatorInfoSchema.optional(),
 });
@@ -478,6 +484,7 @@ export const publishingOptionsResponseSchema = z.object({
     z.object({
       accountId: z.string(),
       platform: platformSchema,
+      boards: z.array(pinterestBoardSchema).optional(),
       destinations: z.array(platformDestinationSchema).optional(),
       creatorInfo: tiktokCreatorInfoSchema.optional(),
     }),
@@ -496,7 +503,7 @@ export const publishingSchemaResponseSchema = z.object({
       platform: platformSchema,
       name: z.string(),
       capability: platformCapabilitySchema,
-      discoveries: z.array(z.enum(["destinations", "creatorInfo"])),
+      discoveries: z.array(z.enum(["destinations", "boards", "creatorInfo"])),
     }),
   ),
 });

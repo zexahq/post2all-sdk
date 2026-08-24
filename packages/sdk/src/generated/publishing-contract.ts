@@ -296,6 +296,10 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
           boardId: {
             enabled: true,
             postTypes: ["image", "video"],
+            type: "enum",
+            valueSource: "account_discovery",
+            discoveryKey: "boards",
+            emptyAsUndefined: true,
           },
           thumbnail: {
             enabled: true,

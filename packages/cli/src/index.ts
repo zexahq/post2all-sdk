@@ -510,6 +510,7 @@ accountCommand
         response.accounts.map((account) => ({
           accountId: account.accountId,
           platform: account.platform,
+          boards: account.boards?.length ?? 0,
           destinations: account.destinations?.length ?? 0,
           creatorInfo: account.creatorInfo ? "available" : "none",
         })),
