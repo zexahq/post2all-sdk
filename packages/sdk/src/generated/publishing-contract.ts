@@ -288,11 +288,6 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
             maxLength: 100,
             postTypes: ["image", "video"],
           },
-          description: {
-            enabled: true,
-            maxLength: 800,
-            postTypes: ["image", "video"],
-          },
           boardId: {
             enabled: true,
             required: true,
