@@ -295,6 +295,9 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
           },
           boardId: {
             enabled: true,
+            required: true,
+            requiredMessage: "Please select a Pinterest board",
+            label: "Board",
             postTypes: ["image", "video"],
             type: "enum",
             valueSource: "account_discovery",
