@@ -288,6 +288,12 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
             maxLength: 100,
             postTypes: ["image", "video"],
           },
+          linkUrl: {
+            enabled: true,
+            label: "Destination URL",
+            description: "The URL users visit when they click the Pin",
+            postTypes: ["image", "video"],
+          },
           boardId: {
             enabled: true,
             required: true,
@@ -298,6 +304,12 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
             valueSource: "account_discovery",
             discoveryKey: "boards",
             emptyAsUndefined: true,
+          },
+          aiDisclosure: {
+            enabled: true,
+            label: "AI-modified content",
+            description: "Tell Pinterest this Pin was modified by AI",
+            postTypes: ["image", "video"],
           },
           thumbnail: {
             enabled: true,
