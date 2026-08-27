@@ -193,6 +193,12 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
           allowedMimeTypes: ["image/jpeg", "video/mp4", "video/quicktime"],
           maxImageBytes: 8388608,
           maxVideoBytes: 1073741824,
+          minImageAspectRatio: 0.8,
+          maxImageAspectRatio: 1.91,
+          imageAspectRatioDescription: "4:5 to 1.91:1",
+          maxVideoWidth: 1920,
+          minVideoDurationSeconds: 3,
+          maxVideoDurationSeconds: 900,
           altText: {
             mediaTypes: ["image"],
             maxLength: 1000,
