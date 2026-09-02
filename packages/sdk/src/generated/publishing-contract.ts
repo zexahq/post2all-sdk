@@ -730,5 +730,30 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
         available: false,
       },
     },
+    wircle: {
+      name: "Wircle",
+      releaseStatus: "public",
+      capability: {
+        postTypes: {
+          text: true,
+          image: true,
+          video: false,
+        },
+        text: {
+          maxLength: 4000,
+        },
+        media: {
+          maxImages: 4,
+          maxVideos: 0,
+          maxImageBytes: 10485760,
+          allowMixedMedia: false,
+          description: "Text or up to 4 images per post (max 10MB each)",
+        },
+        fields: {},
+      },
+      publishedDeletion: {
+        available: false,
+      },
+    },
   },
 } as const;

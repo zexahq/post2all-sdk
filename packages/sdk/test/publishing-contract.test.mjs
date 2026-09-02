@@ -5,13 +5,41 @@ import {
   instagramSettingsSchema,
   platformSchema,
   postMediaInputSchema,
+  postTargetsSchema,
   tiktokSettingsSchema,
+  wircleSettingsSchema,
   youtubeSettingsSchema,
 } from "../dist/types.js";
 
 test("generated platform schema contains every published platform", () => {
   assert.equal(platformSchema.parse("bluesky"), "bluesky");
   assert.equal(platformSchema.parse("tiktok"), "tiktok");
+  assert.equal(platformSchema.parse("wircle"), "wircle");
+});
+
+test("generated Wircle contract exposes the public text and image capabilities", () => {
+  const wircle = PUBLIC_PUBLISHING_CONTRACT.platforms.wircle;
+
+  assert.equal(wircle.releaseStatus, "public");
+  assert.deepEqual(wircle.capability.postTypes, {
+    text: true,
+    image: true,
+    video: false,
+  });
+  assert.equal(wircle.capability.text.maxLength, 4000);
+  assert.equal(wircle.capability.media.maxImages, 4);
+  assert.equal(wircle.capability.media.maxImageBytes, 10 * 1024 * 1024);
+  assert.deepEqual(wircle.capability.fields, {});
+  assert.deepEqual(wircleSettingsSchema.parse({}), {});
+  assert.throws(() =>
+    wircleSettingsSchema.parse({ caption: "not a target setting" }),
+  );
+  assert.deepEqual(
+    postTargetsSchema.parse([
+      { platform: "wircle", accountId: "account-wircle-1", settings: {} },
+    ]),
+    [{ platform: "wircle", accountId: "account-wircle-1", settings: {} }],
+  );
 });
 
 test("generated settings enforce fixed enum values and field limits", () => {

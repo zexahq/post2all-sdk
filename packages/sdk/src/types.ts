@@ -164,6 +164,8 @@ export const telegramSettingsSchema = buildGeneratedSettingsSchema("telegram");
 
 export const discordSettingsSchema = buildGeneratedSettingsSchema("discord");
 
+export const wircleSettingsSchema = buildGeneratedSettingsSchema("wircle");
+
 const tiktokPrivacyValues =
   PUBLIC_PUBLISHING_CONTRACT.platforms.tiktok.capability.fields.tiktokPrivacyLevel.options.map(
     (option) => option.value,
@@ -682,6 +684,7 @@ export type BlueskySettings = z.infer<typeof blueskySettingsSchema>;
 export type TelegramSettings = z.infer<typeof telegramSettingsSchema>;
 export type DiscordSettings = z.infer<typeof discordSettingsSchema>;
 export type TiktokSettings = z.infer<typeof tiktokSettingsSchema>;
+export type WircleSettings = z.infer<typeof wircleSettingsSchema>;
 
 export type SocialAccount = z.infer<typeof socialAccountSchema>;
 export type PlatformCapability = z.infer<typeof platformCapabilitySchema>;
