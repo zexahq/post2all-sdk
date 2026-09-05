@@ -20,7 +20,7 @@ import { Command } from "commander";
 const defaultBaseUrl =
   process.env.POST2ALL_API_URL ??
   process.env.POST2ALL_BASE_URL ??
-  "https://www.post2all.com/api/v1";
+  "https://app.post2all.com/api/v1";
 const CLI_PACKAGE_NAME = "@post2all/cli";
 const UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const UPDATE_CHECK_TIMEOUT_MS = 750;

@@ -42,7 +42,7 @@ import {
   updatePostInputSchema,
 } from "./types.js";
 
-const defaultBaseUrl = "https://www.post2all.com/api/v1";
+const defaultBaseUrl = "https://app.post2all.com/api/v1";
 
 const mediaContentTypes: Record<string, string> = {
   ".jpg": "image/jpeg",
