@@ -218,6 +218,112 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
             maxLength: 2200,
             postTypes: ["image", "video"],
           },
+          instagramCommentHookEnabled: {
+            enabled: true,
+            composerVisible: false,
+            label: "Comment Hook",
+            description:
+              "Auto-reply to comments on this post or Reel: one private DM per comment plus an optional public reply.",
+            postTypes: ["image", "video"],
+          },
+          instagramCommentHookKeyword: {
+            enabled: true,
+            composerVisible: false,
+            maxLength: 100,
+            description:
+              "Legacy single keyword (merged into the keywords list).",
+            postTypes: ["image", "video"],
+          },
+          instagramCommentHookMatchMode: {
+            enabled: true,
+            composerVisible: false,
+            type: "enum",
+            valueSource: "static_enum",
+            options: [
+              {
+                value: "any",
+                label: "Any comment",
+              },
+              {
+                value: "keywords",
+                label: "Keywords",
+              },
+            ],
+            description:
+              "'any' replies to every comment; 'keywords' replies only on keyword hits.",
+            postTypes: ["image", "video"],
+          },
+          instagramCommentHookKeywords: {
+            enabled: true,
+            composerVisible: false,
+            maxCount: 10,
+            label: "Keywords",
+            description: "Up to 10 keywords; any one match triggers the reply.",
+            postTypes: ["image", "video"],
+          },
+          instagramCommentHookExcludeKeywords: {
+            enabled: true,
+            composerVisible: false,
+            maxCount: 10,
+            label: "Excluded keywords",
+            description:
+              "Comments containing any of these never trigger a reply.",
+            postTypes: ["image", "video"],
+          },
+          instagramCommentHookMatchType: {
+            enabled: true,
+            composerVisible: false,
+            type: "enum",
+            valueSource: "static_enum",
+            options: [
+              {
+                value: "exact",
+                label: "Exact",
+              },
+              {
+                value: "contains",
+                label: "Contains",
+              },
+              {
+                value: "full_word",
+                label: "Full word",
+              },
+              {
+                value: "begins_with",
+                label: "Begins with",
+              },
+            ],
+            description:
+              "How keywords match: exact, contains, full_word, or begins_with.",
+            postTypes: ["image", "video"],
+          },
+          instagramCommentHookReplyMessage: {
+            enabled: true,
+            composerVisible: false,
+            maxLength: 1000,
+            label: "DM message",
+            description: "Private reply text (max 1000 chars).",
+            postTypes: ["image", "video"],
+          },
+          instagramCommentHookDmEnabled: {
+            enabled: true,
+            composerVisible: false,
+            label: "Send private DM",
+            postTypes: ["image", "video"],
+          },
+          instagramCommentHookPublicReplyEnabled: {
+            enabled: true,
+            composerVisible: false,
+            label: "Send public reply",
+            postTypes: ["image", "video"],
+          },
+          instagramCommentHookPublicReplyMessage: {
+            enabled: true,
+            composerVisible: false,
+            maxLength: 1000,
+            label: "Public reply text",
+            postTypes: ["image", "video"],
+          },
           thumbnail: {
             enabled: true,
             label: "Video cover",
