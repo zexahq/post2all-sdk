@@ -9,11 +9,14 @@ import {
   Post2allClient,
   postMediaInputSchema,
   postTargetsSchema,
+  type AccountAnalyticsInput,
+  type AccountAnalyticsPostsInput,
   type ApiErrorBody,
   type CreatePostInput,
   type Delivery,
   type PostTarget,
   type UpdatePostInput,
+  type RetryPostInput,
 } from "@post2all/sdk";
 import { Command } from "commander";
 
@@ -88,6 +91,25 @@ type PostUpdateOptions = DeliveryOptions & {
   targets?: string;
   media?: string;
   mediaIds?: string;
+  json?: boolean;
+};
+
+type AnalyticsOptions = {
+  startDate?: string;
+  endDate?: string;
+  refresh?: boolean;
+  json?: boolean;
+};
+
+type AccountAnalyticsPostsOptions = AnalyticsOptions & {
+  cursor?: string;
+  limit?: string;
+  sortBy?: AccountAnalyticsPostsInput["sortBy"];
+  sortDirection?: AccountAnalyticsPostsInput["sortDirection"];
+};
+
+type PostAnalyticsOptions = {
+  refresh?: boolean;
   json?: boolean;
 };
 
@@ -251,6 +273,16 @@ function printOutput(value: unknown, asJson = false): void {
   }
 
   console.table(value as Record<string, unknown>[]);
+}
+
+function analyticsInput(options: AnalyticsOptions): AccountAnalyticsInput {
+  return {
+    ...(options.startDate !== undefined
+      ? { startDate: options.startDate }
+      : {}),
+    ...(options.endDate !== undefined ? { endDate: options.endDate } : {}),
+    ...(options.refresh !== undefined ? { refresh: options.refresh } : {}),
+  };
 }
 
 function parseCsv(input: string): string[] {
@@ -520,6 +552,124 @@ accountCommand
     }
   });
 
+accountCommand
+  .command("analytics")
+  .description("Get account-level social analytics and trends")
+  .argument("<accountId>", "Social account ID")
+  .option("--start-date <date>", "Inclusive analytics start date (YYYY-MM-DD)")
+  .option("--end-date <date>", "Inclusive analytics end date (YYYY-MM-DD)")
+  .option("--refresh", "Fetch fresh provider analytics instead of using cache")
+  .option("--json", "Output JSON")
+  .action(async (accountId: string, options: AnalyticsOptions) => {
+    try {
+      const client = await createClient(program.opts<RootOptions>());
+      const response = await client.getAccountAnalytics(
+        accountId,
+        analyticsInput(options),
+      );
+
+      if (options.json) {
+        console.log(JSON.stringify(response, null, 2));
+        return;
+      }
+
+      console.log(
+        `${response.account.platform} account analytics · ${response.range.startDate} → ${response.range.endDate} · ${response.status}`,
+      );
+      if (response.message) console.log(response.message);
+      const definitions = new Map(
+        response.capabilities.accountMetricDefinitions.map((definition) => [
+          definition.key,
+          definition,
+        ]),
+      );
+      printOutput(
+        response.metrics.map((metric) => {
+          const definition = definitions.get(metric.key);
+          const comparison = response.comparisons[metric.key];
+          return {
+            metric: definition?.label ?? metric.key,
+            value: metric.value,
+            change:
+              comparison?.unit === "percentage_points"
+                ? `${comparison.delta >= 0 ? "+" : ""}${comparison.delta} pp`
+                : comparison?.percent !== undefined
+                  ? `${comparison.percent >= 0 ? "+" : ""}${comparison.percent.toFixed(1)}%`
+                  : comparison
+                    ? `${comparison.delta >= 0 ? "+" : ""}${comparison.delta}`
+                    : "—",
+          };
+        }),
+      );
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+accountCommand
+  .command("analytics-posts")
+  .description("List provider-wide post analytics for a connected account")
+  .argument("<accountId>", "Social account ID")
+  .option("--start-date <date>", "Inclusive analytics start date (YYYY-MM-DD)")
+  .option("--end-date <date>", "Inclusive analytics end date (YYYY-MM-DD)")
+  .option("--cursor <cursor>", "Pagination cursor")
+  .option("--limit <limit>", "Posts per page (maximum 50)")
+  .option(
+    "--sort-by <metric>",
+    "Sort by publishedAt, views, reach, likes, comments, shares, saves, replies, reposts, or quotes",
+  )
+  .option("--sort-direction <direction>", "Sort direction: asc or desc")
+  .option("--refresh", "Fetch fresh provider analytics instead of using cache")
+  .option("--json", "Output JSON")
+  .action(async (accountId: string, options: AccountAnalyticsPostsOptions) => {
+    try {
+      const client = await createClient(program.opts<RootOptions>());
+      const response = await client.listAccountAnalyticsPosts(accountId, {
+        ...analyticsInput(options),
+        ...(options.cursor !== undefined ? { cursor: options.cursor } : {}),
+        ...(options.limit !== undefined
+          ? { limit: Number(options.limit) }
+          : {}),
+        ...(options.sortBy !== undefined ? { sortBy: options.sortBy } : {}),
+        ...(options.sortDirection !== undefined
+          ? { sortDirection: options.sortDirection }
+          : {}),
+      });
+
+      if (options.json) {
+        console.log(JSON.stringify(response, null, 2));
+        return;
+      }
+
+      console.log(
+        `${response.account.platform} post analytics · ${response.range.startDate} → ${response.range.endDate} · ${response.status}`,
+      );
+      if (response.message) console.log(response.message);
+      printOutput(
+        response.posts.map((post) => {
+          const metrics = new Map(
+            post.metrics.map((metric) => [metric.key, metric.value]),
+          );
+          return {
+            platformPostId: post.platformPostId,
+            publishedAt: post.publishedAt,
+            origin: post.origin,
+            views: metrics.get("views") ?? metrics.get("impressions") ?? "—",
+            reach: metrics.get("reach") ?? "—",
+            likes: metrics.get("likes") ?? "—",
+            comments: metrics.get("comments") ?? metrics.get("replies") ?? "—",
+            shares: metrics.get("shares") ?? metrics.get("reposts") ?? "—",
+          };
+        }),
+      );
+      console.log(
+        `Posts: ${response.pagination.postCount ?? "unknown"}, hasMore=${response.pagination.hasMore}${response.pagination.nextCursor ? `, nextCursor=${response.pagination.nextCursor}` : ""}`,
+      );
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
 const postCommand = program
   .command("post")
   .description("Create and inspect posts");
@@ -640,6 +790,47 @@ postCommand
   });
 
 postCommand
+  .command("analytics")
+  .description("Get per-target analytics for one post2all post")
+  .argument("<postId>", "Post ID")
+  .option("--refresh", "Fetch fresh provider analytics instead of using cache")
+  .option("--json", "Output JSON")
+  .action(async (postId: string, options: PostAnalyticsOptions) => {
+    try {
+      const client = await createClient(program.opts<RootOptions>());
+      const response = await client.getPostAnalytics(
+        postId,
+        options.refresh === undefined ? {} : { refresh: options.refresh },
+      );
+
+      if (options.json) {
+        console.log(JSON.stringify(response, null, 2));
+        return;
+      }
+
+      printOutput(
+        response.targets.map((target) => {
+          const metrics = new Map(
+            target.metrics.map((metric) => [metric.key, metric.value]),
+          );
+          return {
+            postAccountId: target.postAccountId,
+            platform: target.platform,
+            status: target.analyticsStatus,
+            views: metrics.get("views") ?? metrics.get("impressions") ?? "—",
+            reach: metrics.get("reach") ?? "—",
+            likes: metrics.get("likes") ?? "—",
+            comments: metrics.get("comments") ?? metrics.get("replies") ?? "—",
+            message: target.message ?? "",
+          };
+        }),
+      );
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+postCommand
   .command("update")
   .description("Update a draft, scheduled, failed, or partially failed post")
   .argument("<postId>", "Post ID")
@@ -688,6 +879,32 @@ postCommand
         return;
       }
       printOutput([response.post]);
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+postCommand
+  .command("retry")
+  .description("Retry only the failed accounts for a failed post")
+  .argument("<postId>", "Post ID")
+  .option(
+    "--scheduled-at <isoDate>",
+    "Timezone-aware ISO date for scheduled retry",
+  )
+  .option("--json", "Output JSON")
+  .action(async (postId: string, options: { scheduledAt?: string; json?: boolean }) => {
+    try {
+      const client = await createClient(program.opts<RootOptions>());
+      const input: RetryPostInput = options.scheduledAt
+        ? { scheduledAt: options.scheduledAt }
+        : {};
+      const response = await client.retryPost(postId, input);
+      if (options.json) {
+        console.log(JSON.stringify(response, null, 2));
+        return;
+      }
+      printOutput([response.retry]);
     } catch (error) {
       handleError(error);
     }

@@ -341,6 +341,12 @@ export const updatePostInputSchema = z
     }
   });
 
+export const retryPostInputSchema = z
+  .object({
+    scheduledAt: z.string().datetime({ offset: true }).optional(),
+  })
+  .strict();
+
 export const listPostsInputSchema = z
   .object({
     page: z.number().int().min(1).optional(),
@@ -381,6 +387,174 @@ export const socialAccountSchema = z.object({
 
 export const listAccountsResponseSchema = z.object({
   accounts: z.array(socialAccountSchema),
+});
+
+// ─── Analytics contracts ────────────────────────────────────────────────────
+
+const publicAnalyticsContract = PUBLIC_PUBLISHING_CONTRACT.analytics;
+
+const analyticsDateStringSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Expected YYYY-MM-DD")
+  .refine((value) => {
+    const date = new Date(`${value}T00:00:00.000Z`);
+    return (
+      !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
+    );
+  }, "Invalid calendar date");
+
+export const analyticsSortBySchema = z.enum(publicAnalyticsContract.sortBy);
+
+export const analyticsSortDirectionSchema = z.enum(
+  publicAnalyticsContract.sortDirections,
+);
+
+export const accountAnalyticsInputSchema = z
+  .object({
+    startDate: analyticsDateStringSchema.optional(),
+    endDate: analyticsDateStringSchema.optional(),
+    refresh: z.boolean().optional(),
+  })
+  .strict();
+
+export const accountAnalyticsPostsInputSchema = accountAnalyticsInputSchema
+  .extend({
+    cursor: z.string().min(1).max(2000).optional(),
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(publicAnalyticsContract.maxPostsPageSize)
+      .optional(),
+    sortBy: analyticsSortBySchema.optional(),
+    sortDirection: analyticsSortDirectionSchema.optional(),
+  })
+  .strict();
+
+export const postAnalyticsInputSchema = z
+  .object({ refresh: z.boolean().optional() })
+  .strict();
+
+export const analyticsMetricSchema = z.object({
+  key: z.enum(publicAnalyticsContract.metricKeys).or(z.string()),
+  value: z.number(),
+  sourceMetric: z.string(),
+});
+
+export const analyticsMetricDefinitionSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  description: z.string(),
+  group: z.enum(publicAnalyticsContract.metricGroups).or(z.string()),
+  format: z.enum(publicAnalyticsContract.metricFormats).or(z.string()),
+  account: z.boolean(),
+  post: z.boolean(),
+  series: z.boolean(),
+});
+
+export const analyticsCapabilitiesSchema = z.object({
+  accountOverview: z.boolean(),
+  accountTimeSeries: z.boolean(),
+  postMetrics: z.boolean(),
+  accountPostListing: z.boolean(),
+  accountMetricKeys: z.array(
+    z.enum(publicAnalyticsContract.metricKeys).or(z.string()),
+  ),
+  postMetricKeys: z.array(
+    z.enum(publicAnalyticsContract.metricKeys).or(z.string()),
+  ),
+  accountMetricDefinitions: z.array(analyticsMetricDefinitionSchema),
+  postMetricDefinitions: z.array(analyticsMetricDefinitionSchema),
+});
+
+export const analyticsAccountSchema = z.object({
+  id: z.string(),
+  platform: platformSchema.or(z.string()),
+  username: z.string().nullable(),
+  displayName: z.string().nullable(),
+  avatarUrl: z.string().nullable(),
+  status: z.string(),
+});
+
+export const analyticsRangeSchema = z.object({
+  startDate: analyticsDateStringSchema,
+  endDate: analyticsDateStringSchema,
+});
+
+export const analyticsComparisonSchema = z.object({
+  previousValue: z.number(),
+  delta: z.number(),
+  percent: z.number().optional(),
+  unit: z.enum(publicAnalyticsContract.comparisonUnits),
+});
+
+export const accountAnalyticsResponseSchema = z.object({
+  status: z.enum(publicAnalyticsContract.accountStatuses).or(z.string()),
+  account: analyticsAccountSchema,
+  range: analyticsRangeSchema,
+  capabilities: analyticsCapabilitiesSchema,
+  metrics: z.array(analyticsMetricSchema),
+  series: z.array(
+    z.object({
+      date: analyticsDateStringSchema,
+      metrics: z.array(analyticsMetricSchema),
+    }),
+  ),
+  fetchedAt: z.string().nullable(),
+  comparisons: z.record(z.string(), analyticsComparisonSchema),
+  comparisonRange: analyticsRangeSchema.nullable(),
+  message: z.string().optional(),
+});
+
+export const accountAnalyticsPostSchema = z.object({
+  platformPostId: z.string(),
+  publishedAt: z.string(),
+  content: z.string().nullable(),
+  mediaType: z.enum(publicAnalyticsContract.postMediaTypes).nullable(),
+  thumbnailUrl: z.string().nullable().optional(),
+  platformPostUrl: z.string().nullable().optional(),
+  metrics: z.array(analyticsMetricSchema),
+  origin: z.enum(["post2all", "external"]),
+  postId: z.string().optional(),
+  postAccountId: z.string().optional(),
+  analyticsAvailable: z.boolean(),
+});
+
+export const accountAnalyticsPostsResponseSchema = z.object({
+  status: z.enum(publicAnalyticsContract.accountPostStatuses).or(z.string()),
+  account: analyticsAccountSchema,
+  range: analyticsRangeSchema,
+  capabilities: analyticsCapabilitiesSchema,
+  posts: z.array(accountAnalyticsPostSchema),
+  pagination: z.object({
+    limit: z.number(),
+    postCount: z.number().nullable(),
+    hasMore: z.boolean(),
+    nextCursor: z.string().nullable().optional(),
+  }),
+  message: z.string().optional(),
+});
+
+export const postAnalyticsTargetSchema = z.object({
+  postAccountId: z.string(),
+  account: analyticsAccountSchema.nullable(),
+  platform: platformSchema.or(z.string()),
+  deliveryStatus: z.string(),
+  platformPostId: z.string().nullable(),
+  platformPostUrl: z.string().nullable(),
+  publishedAt: z.string().nullable(),
+  analyticsStatus: z
+    .enum(publicAnalyticsContract.postTargetStatuses)
+    .or(z.string()),
+  analyticsAvailable: z.boolean(),
+  capabilities: analyticsCapabilitiesSchema.nullable(),
+  metrics: z.array(analyticsMetricSchema),
+  message: z.string().optional(),
+});
+
+export const postAnalyticsResponseSchema = z.object({
+  postId: z.string(),
+  targets: z.array(postAnalyticsTargetSchema),
 });
 
 const platformFieldCapabilitySchema = z
@@ -629,6 +803,14 @@ export const updatePostResponseSchema = z.object({
   }),
 });
 
+export const retryPostResponseSchema = z.object({
+  retry: z.object({
+    postId: z.string(),
+    status: z.enum(["publishing", "scheduled"]),
+    failedTargetCount: z.number().int().nonnegative(),
+  }),
+});
+
 export const deletePostResponseSchema = z.object({ success: z.boolean() });
 
 export const deletePublishedPostResponseSchema = z.object({
@@ -687,6 +869,23 @@ export type TiktokSettings = z.infer<typeof tiktokSettingsSchema>;
 export type WircleSettings = z.infer<typeof wircleSettingsSchema>;
 
 export type SocialAccount = z.infer<typeof socialAccountSchema>;
+export type AnalyticsMetric = z.infer<typeof analyticsMetricSchema>;
+export type AnalyticsMetricDefinition = z.infer<
+  typeof analyticsMetricDefinitionSchema
+>;
+export type AnalyticsCapabilities = z.infer<typeof analyticsCapabilitiesSchema>;
+export type AnalyticsAccount = z.infer<typeof analyticsAccountSchema>;
+export type AnalyticsRange = z.infer<typeof analyticsRangeSchema>;
+export type AnalyticsComparison = z.infer<typeof analyticsComparisonSchema>;
+export type AccountAnalyticsPost = z.infer<typeof accountAnalyticsPostSchema>;
+export type PostAnalyticsTarget = z.infer<typeof postAnalyticsTargetSchema>;
+export type AccountAnalyticsResponse = z.infer<
+  typeof accountAnalyticsResponseSchema
+>;
+export type AccountAnalyticsPostsResponse = z.infer<
+  typeof accountAnalyticsPostsResponseSchema
+>;
+export type PostAnalyticsResponse = z.infer<typeof postAnalyticsResponseSchema>;
 export type PlatformCapability = z.infer<typeof platformCapabilitySchema>;
 export type PlatformDestination = z.infer<typeof platformDestinationSchema>;
 export type TikTokCreatorInfo = z.infer<typeof tiktokCreatorInfoSchema>;
@@ -705,6 +904,7 @@ export type ListPostsResponse = z.infer<typeof listPostsResponseSchema>;
 export type GetPostResponse = z.infer<typeof getPostResponseSchema>;
 export type CreatePostResponse = z.infer<typeof createPostResponseSchema>;
 export type UpdatePostResponse = z.infer<typeof updatePostResponseSchema>;
+export type RetryPostResponse = z.infer<typeof retryPostResponseSchema>;
 export type DeletePostResponse = z.infer<typeof deletePostResponseSchema>;
 export type PublishedDeletionReason = z.infer<
   typeof publishedDeletionReasonSchema
@@ -722,7 +922,13 @@ export type ConfirmMediaUploadResponse = z.infer<
 
 export type CreatePostInput = z.input<typeof createPostInputSchema>;
 export type UpdatePostInput = z.input<typeof updatePostInputSchema>;
+export type RetryPostInput = z.input<typeof retryPostInputSchema>;
 export type ListPostsInput = z.input<typeof listPostsInputSchema>;
+export type AccountAnalyticsInput = z.input<typeof accountAnalyticsInputSchema>;
+export type AccountAnalyticsPostsInput = z.input<
+  typeof accountAnalyticsPostsInputSchema
+>;
+export type PostAnalyticsInput = z.input<typeof postAnalyticsInputSchema>;
 export type CreateMediaUploadInput = z.input<
   typeof createMediaUploadInputSchema
 >;

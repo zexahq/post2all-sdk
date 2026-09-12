@@ -26,6 +26,38 @@ Call `constraints` once before composing to load every platform limit and connec
 
 Treat publishing options as the source of truth for text, media, and field constraints. Limits can be account-specific—for example, X paid tiers receive a different text limit. Do not pass `--type`. Composition is inferred from attached media; mixed image/video is allowed only when platform `media.allowMixedMedia` is true. When `capability.media.altText` is present, use `--media` to set optional alt text on each media item. X intentionally does not expose that capability.
 
+## Analytics
+
+Read account-level analytics:
+
+```bash
+post2all account analytics acc_instagram_123 --json
+post2all account analytics acc_instagram_123 \
+  --start-date 2026-08-01 \
+  --end-date 2026-08-31
+```
+
+Without dates, post2all uses the latest 30 inclusive UTC days; the maximum range is 90 days. Add `--refresh` only when you need fresh provider data instead of cached analytics.
+
+Compare provider-wide posts:
+
+```bash
+post2all account analytics-posts acc_instagram_123 \
+  --sort-by views \
+  --sort-direction desc \
+  --limit 20
+```
+
+Results can include content published directly on the provider. `origin=external` means the provider post was not matched to a post2all post.
+
+Read per-target analytics for a post2all post:
+
+```bash
+post2all post analytics post_abc --json
+```
+
+Check `analyticsStatus` for each target; an empty metrics list can mean unavailable/no-data/reconnect-required rather than zero engagement.
+
 ## Create posts
 
 The CLI accepts the same target structure as the REST API:

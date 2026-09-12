@@ -54,7 +54,7 @@ test("generated settings enforce fixed enum values and field limits", () => {
 });
 
 test("generated contract exposes only public published deletion", () => {
-  assert.equal(PUBLIC_PUBLISHING_CONTRACT.version, 1);
+  assert.equal(PUBLIC_PUBLISHING_CONTRACT.version, 2);
   assert.equal(
     PUBLIC_PUBLISHING_CONTRACT.platforms.twitter.publishedDeletion.available,
     true,
@@ -74,6 +74,21 @@ test("generated contract exposes only public published deletion", () => {
   assert.equal(
     PUBLIC_PUBLISHING_CONTRACT.platforms.tiktok.publishedDeletion.available,
     false,
+  );
+});
+
+test("generated contract exposes the public analytics schema metadata", () => {
+  assert.equal(PUBLIC_PUBLISHING_CONTRACT.analytics.defaultRangeDays, 30);
+  assert.equal(PUBLIC_PUBLISHING_CONTRACT.analytics.maxRangeDays, 90);
+  assert.equal(PUBLIC_PUBLISHING_CONTRACT.analytics.maxPostsPageSize, 50);
+  assert.ok(PUBLIC_PUBLISHING_CONTRACT.analytics.metricKeys.includes("views"));
+  assert.ok(
+    PUBLIC_PUBLISHING_CONTRACT.analytics.sortBy.includes("publishedAt"),
+  );
+  assert.ok(
+    PUBLIC_PUBLISHING_CONTRACT.analytics.postTargetStatuses.includes(
+      "provider_error",
+    ),
   );
 });
 

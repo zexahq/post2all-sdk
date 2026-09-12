@@ -5,6 +5,14 @@ import { z } from "zod";
 
 import { Post2allApiError } from "./errors.js";
 import {
+  type AccountAnalyticsInput,
+  accountAnalyticsInputSchema,
+  type AccountAnalyticsPostsInput,
+  accountAnalyticsPostsInputSchema,
+  type AccountAnalyticsPostsResponse,
+  accountAnalyticsPostsResponseSchema,
+  type AccountAnalyticsResponse,
+  accountAnalyticsResponseSchema,
   type ApiErrorBody,
   type CreatePostInput,
   createPostResponseSchema,
@@ -22,9 +30,17 @@ import {
   type ListPostsInput,
   type ListPostsResponse,
   listPostsResponseSchema,
+  type PostAnalyticsInput,
+  postAnalyticsInputSchema,
+  type PostAnalyticsResponse,
+  postAnalyticsResponseSchema,
   type UpdatePostInput,
   type UpdatePostResponse,
   updatePostResponseSchema,
+  type RetryPostInput,
+  type RetryPostResponse,
+  retryPostInputSchema,
+  retryPostResponseSchema,
   type DeletePostResponse,
   deletePostResponseSchema,
   type DeletePublishedPostResponse,
@@ -58,6 +74,28 @@ const mediaContentTypes: Record<string, string> = {
   ".mkv": "video/x-matroska",
 };
 
+function analyticsQueryString(input: {
+  startDate?: string;
+  endDate?: string;
+  cursor?: string;
+  limit?: number;
+  sortBy?: string;
+  sortDirection?: string;
+  refresh?: boolean;
+}): string {
+  const query = new URLSearchParams();
+  if (input.startDate !== undefined) query.set("startDate", input.startDate);
+  if (input.endDate !== undefined) query.set("endDate", input.endDate);
+  if (input.cursor !== undefined) query.set("cursor", input.cursor);
+  if (input.limit !== undefined) query.set("limit", String(input.limit));
+  if (input.sortBy !== undefined) query.set("sortBy", input.sortBy);
+  if (input.sortDirection !== undefined)
+    query.set("sortDirection", input.sortDirection);
+  if (input.refresh !== undefined) query.set("refresh", String(input.refresh));
+  const value = query.toString();
+  return value ? `?${value}` : "";
+}
+
 export type Post2allClientInfo = {
   name: "cli";
   version?: string;
@@ -86,6 +124,40 @@ export class Post2allClient {
   public async listAccounts(): Promise<ListAccountsResponse> {
     const response = await this.request("/accounts");
     return this.parseJson(response, listAccountsResponseSchema);
+  }
+
+  public async getAccountAnalytics(
+    accountId: string,
+    input: AccountAnalyticsInput = {},
+  ): Promise<AccountAnalyticsResponse> {
+    if (!accountId) {
+      throw new Post2allApiError("accountId is required", {
+        status: 400,
+        code: "INVALID_REQUEST",
+      });
+    }
+    input = accountAnalyticsInputSchema.parse(input);
+    const response = await this.request(
+      `/accounts/${encodeURIComponent(accountId)}/analytics${analyticsQueryString(input)}`,
+    );
+    return this.parseJson(response, accountAnalyticsResponseSchema);
+  }
+
+  public async listAccountAnalyticsPosts(
+    accountId: string,
+    input: AccountAnalyticsPostsInput = {},
+  ): Promise<AccountAnalyticsPostsResponse> {
+    if (!accountId) {
+      throw new Post2allApiError("accountId is required", {
+        status: 400,
+        code: "INVALID_REQUEST",
+      });
+    }
+    input = accountAnalyticsPostsInputSchema.parse(input);
+    const response = await this.request(
+      `/accounts/${encodeURIComponent(accountId)}/analytics/posts${analyticsQueryString(input)}`,
+    );
+    return this.parseJson(response, accountAnalyticsPostsResponseSchema);
   }
 
   public async getPublishingSchema(
@@ -243,6 +315,23 @@ export class Post2allClient {
     return this.parseJson(response, getPostResponseSchema);
   }
 
+  public async getPostAnalytics(
+    postId: string,
+    input: PostAnalyticsInput = {},
+  ): Promise<PostAnalyticsResponse> {
+    if (!postId) {
+      throw new Post2allApiError("postId is required", {
+        status: 400,
+        code: "INVALID_REQUEST",
+      });
+    }
+    input = postAnalyticsInputSchema.parse(input);
+    const response = await this.request(
+      `/posts/${encodeURIComponent(postId)}/analytics${analyticsQueryString(input)}`,
+    );
+    return this.parseJson(response, postAnalyticsResponseSchema);
+  }
+
   public async updatePost(
     postId: string,
     input: UpdatePostInput,
@@ -282,6 +371,29 @@ export class Post2allClient {
     );
 
     return this.parseJson(response, deletePostResponseSchema);
+  }
+
+  public async retryPost(
+    postId: string,
+    input: RetryPostInput = {},
+  ): Promise<RetryPostResponse> {
+    if (!postId) {
+      throw new Post2allApiError("postId is required", {
+        status: 400,
+        code: "INVALID_REQUEST",
+      });
+    }
+
+    input = retryPostInputSchema.parse(input);
+    const response = await this.request(
+      "/posts/" + encodeURIComponent(postId) + "/retry",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      },
+    );
+    return this.parseJson(response, retryPostResponseSchema);
   }
 
   public async deletePublishedPost(

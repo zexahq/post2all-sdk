@@ -2,6 +2,20 @@
 
 All notable changes to the post2all SDK and CLI are documented here.
 
+## Unreleased
+
+### Added
+
+- Added typed SDK analytics methods: `getAccountAnalytics`, `listAccountAnalyticsPosts`, and `getPostAnalytics`.
+- Added CLI analytics commands for account overview, provider-wide account posts, and per-target post analytics.
+- Added typed analytics metric definitions, comparison data, pagination, refresh controls, and per-target availability statuses.
+
+### Notes
+
+- Account analytics default to the latest 30 inclusive UTC days and accept ranges up to 90 days.
+- Provider-wide account post analytics can include posts published outside post2all when supported; these are identified by `origin: "external"`.
+- The generated public contract now also carries sanitized analytics schema metadata (ranges, sort keys, metric keys, formats, and public statuses) so SDK/CLI validation stays aligned with the monorepo contract source.
+
 ## 0.3.0 - 2026-08-18
 
 ### Added

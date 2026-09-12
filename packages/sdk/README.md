@@ -43,7 +43,7 @@ const { post } = await client.createPost({
 
 `targets` is a discriminated union. Once `platform` is selected, TypeScript and Zod only accept settings supported by that platform.
 
-Platform IDs, settings fields, fixed enums, limits, and the static `publishedDeletion.available` capability are generated from the private monorepo's public publishing contract. Do not edit the generated contract file in this repository; the release synchronization job regenerates it.
+Platform IDs, settings fields, fixed enums, limits, the static `publishedDeletion.available` capability, and sanitized analytics schema metadata are generated from the private monorepo's public contract. Do not edit the generated contract file in this repository; the release synchronization job regenerates it.
 
 ## Delivery modes
 
@@ -92,6 +92,42 @@ console.log(options.accounts[0]?.boards);
 
 Do not send a fixed post type. Composition is inferred from attached media. Mixed image/video is allowed only when platform `media.allowMixedMedia` is true. When `capability.media.altText` is present, each attached media item may include its own `altText`; use the returned media types and maximum length. X intentionally does not expose media alt text.
 
+## Analytics
+
+Read normalized account metrics, time series, provider metric definitions, and previous-period comparisons:
+
+```ts
+const analytics = await client.getAccountAnalytics("acc_instagram_123", {
+  startDate: "2026-08-01",
+  endDate: "2026-08-31",
+});
+
+console.log(analytics.metrics);
+console.log(analytics.comparisons);
+```
+
+The default range is the latest 30 inclusive UTC days and the maximum range is 90 days. Pass `refresh: true` only when you explicitly need fresh provider data instead of the normal analytics cache.
+
+Compare provider-wide post performance:
+
+```ts
+const posts = await client.listAccountAnalyticsPosts("acc_instagram_123", {
+  sortBy: "views",
+  sortDirection: "desc",
+  limit: 20,
+});
+```
+
+Supported platforms can return posts that were published outside post2all. Use `origin` to distinguish matched post2all posts from `external` provider posts; unmatched external posts intentionally omit `postId` and `postAccountId`.
+
+Read analytics for every target of a post2all post:
+
+```ts
+const result = await client.getPostAnalytics("post_abc");
+```
+
+Inspect each target's `analyticsStatus` before interpreting an empty metrics array. Unavailable provider data, reconnect requirements, unpublished targets, and provider errors are not zero engagement.
+
 ## Media
 
 ```ts
@@ -124,6 +160,8 @@ await client.createPost({
 ## API
 
 - `listAccounts()`
+- `getAccountAnalytics(accountId, input?)`
+- `listAccountAnalyticsPosts(accountId, input?)`
 - `getPublishingSchema(accountIds)`
 - `getPublishingOptions(accountIds)`
 - `getAccountPublishingOptions(accountId)` (compatibility)
@@ -133,6 +171,7 @@ await client.createPost({
 - `createPost(input)`
 - `listPosts(input?)`
 - `getPost(postId)`
+- `getPostAnalytics(postId, input?)`
 - `updatePost(postId, input)`
 - `deletePublishedPost(postId, postAccountId)` — removes one published social post on a public deletion platform while keeping the post2all post
 - `deletePost(postId)` — removes the post from post2all; already-published social content remains live
