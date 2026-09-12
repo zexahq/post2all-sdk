@@ -42,6 +42,146 @@ test("direct SDK usage does not claim to be the CLI", async () => {
   assert.equal(headers?.get("x-post2all-client-version"), null);
 });
 
+test("connectAccount starts a headless OAuth connection with caller redirect", async () => {
+  let requestedUrl;
+  let requestedInit;
+  const client = new Post2allClient({
+    apiKey: "amp_test",
+    baseUrl: "https://example.test/api/v1",
+    fetchImplementation: async (url, init) => {
+      requestedUrl = String(url);
+      requestedInit = init;
+      return Response.json({
+        type: "oauth",
+        connectionId: "conn-1",
+        authorizationUrl: "https://instagram.com/oauth/authorize?state=conn-1",
+        expiresAt: "2026-09-12T13:15:00.000Z",
+      });
+    },
+  });
+
+  const result = await client.connectAccount("instagram", {
+    redirectUrl: "https://client.example/social/callback",
+  });
+
+  assert.equal(
+    requestedUrl,
+    "https://example.test/api/v1/accounts/connect/instagram",
+  );
+  assert.equal(requestedInit?.method, "POST");
+  assert.deepEqual(JSON.parse(requestedInit?.body), {
+    redirectUrl: "https://client.example/social/callback",
+  });
+  assert.equal(result.type, "oauth");
+  assert.equal(result.connectionId, "conn-1");
+});
+
+test("connectAccount validates Wircle credentials before making a request", async () => {
+  let requests = 0;
+  const client = new Post2allClient({
+    apiKey: "amp_test",
+    baseUrl: "https://example.test/api/v1",
+    fetchImplementation: async () => {
+      requests += 1;
+      return Response.json({});
+    },
+  });
+
+  await assert.rejects(() => client.connectAccount("wircle", {}));
+  assert.equal(requests, 0);
+});
+
+test("account lifecycle methods use the public account endpoints", async () => {
+  const calls = [];
+  const client = new Post2allClient({
+    apiKey: "amp_test",
+    baseUrl: "https://example.test/api/v1",
+    fetchImplementation: async (url, init) => {
+      calls.push({ url: String(url), method: init?.method ?? "GET" });
+      const path = new URL(String(url)).pathname;
+
+      if (path.endsWith("/accounts/platforms")) {
+        return Response.json({
+          platforms: [],
+          usage: {
+            totalConnected: 0,
+            maxConnectedAccounts: 10,
+            remainingSlots: 10,
+            canConnectMore: true,
+          },
+        });
+      }
+      if (path.endsWith("/accounts/connections/conn-1")) {
+        return Response.json({
+          connectionId: "conn-1",
+          platform: "instagram",
+          type: "oauth",
+          status: "connected",
+          expiresAt: "2026-09-12T14:00:00.000Z",
+          accountIds: ["account-1"],
+          error: null,
+        });
+      }
+      if (path.endsWith("/accounts/account-1/reconnect")) {
+        return Response.json({
+          type: "oauth",
+          connectionId: "conn-2",
+          authorizationUrl:
+            "https://instagram.com/oauth/authorize?state=conn-2",
+          expiresAt: "2026-09-12T14:15:00.000Z",
+        });
+      }
+      if (path.endsWith("/accounts/account-1") && init?.method === "DELETE") {
+        return Response.json({ success: true });
+      }
+      return Response.json({
+        account: {
+          id: "account-1",
+          platform: "instagram",
+          platformAccountId: "ig-1",
+          username: "creator",
+          displayName: "Creator",
+          avatarUrl: null,
+          status: "active",
+          lastError: null,
+          reconnectable: true,
+          connectionType: "oauth",
+          supportedPostTypes: { text: true, image: true, video: true },
+          createdAt: "2026-09-12T12:00:00.000Z",
+        },
+      });
+    },
+  });
+
+  await client.listAccountPlatforms();
+  const account = await client.getAccount("account-1");
+  const connection = await client.getAccountConnection("conn-1");
+  await client.reconnectAccount("account-1", {
+    redirectUrl: "https://client.example/callback",
+  });
+  const disconnected = await client.disconnectAccount("account-1");
+
+  assert.equal(account.account.reconnectable, true);
+  assert.equal(connection.status, "connected");
+  assert.equal(disconnected.success, true);
+  assert.deepEqual(calls, [
+    { url: "https://example.test/api/v1/accounts/platforms", method: "GET" },
+    { url: "https://example.test/api/v1/accounts/account-1", method: "GET" },
+    {
+      url: "https://example.test/api/v1/accounts/connections/conn-1",
+      method: "GET",
+    },
+    {
+      url: "https://example.test/api/v1/accounts/account-1/reconnect",
+      method: "POST",
+    },
+    {
+      url: "https://example.test/api/v1/accounts/account-1",
+      method: "DELETE",
+    },
+  ]);
+});
+
 test("account analytics serializes range and refresh query parameters", async () => {
   let requestedUrl;
   const client = new Post2allClient({

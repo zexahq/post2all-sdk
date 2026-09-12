@@ -6,12 +6,17 @@ All notable changes to the post2all SDK and CLI are documented here.
 
 ### Added
 
+- Added typed social-account lifecycle SDK methods: `listAccountPlatforms`, `connectAccount`, `getAccountConnection`, `getAccount`, `reconnectAccount`, and `disconnectAccount`.
+- Added CLI commands for starting OAuth/Telegram/Wircle connections, checking connection status, reconnecting exact provider identities, inspecting accounts, and disconnecting accounts.
+- Added headless OAuth support for third-party SaaS integrations: end users can authorize social accounts without a post2all account or login session, then return to the caller's own redirect URL.
 - Added typed SDK analytics methods: `getAccountAnalytics`, `listAccountAnalyticsPosts`, and `getPostAnalytics`.
 - Added CLI analytics commands for account overview, provider-wide account posts, and per-target post analytics.
 - Added typed analytics metric definitions, comparison data, pagination, refresh controls, and per-target availability statuses.
 
 ### Notes
 
+- Account OAuth redirects expose only safe completion identifiers/status. Provider tokens remain server-side, and reconnects reject mismatched provider identities.
+- `redirectUrl` must use HTTPS except loopback HTTP for local development and is limited to 2048 characters.
 - Account analytics default to the latest 30 inclusive UTC days and accept ranges up to 90 days.
 - Provider-wide account post analytics can include posts published outside post2all when supported; these are identified by `origin: "external"`.
 - The generated public contract now also carries sanitized analytics schema metadata (ranges, sort keys, metric keys, formats, and public statuses) so SDK/CLI validation stays aligned with the monorepo contract source.

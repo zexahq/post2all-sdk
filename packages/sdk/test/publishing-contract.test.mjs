@@ -54,7 +54,7 @@ test("generated settings enforce fixed enum values and field limits", () => {
 });
 
 test("generated contract exposes only public published deletion", () => {
-  assert.equal(PUBLIC_PUBLISHING_CONTRACT.version, 2);
+  assert.equal(PUBLIC_PUBLISHING_CONTRACT.version, 3);
   assert.equal(
     PUBLIC_PUBLISHING_CONTRACT.platforms.twitter.publishedDeletion.available,
     true,
@@ -74,6 +74,31 @@ test("generated contract exposes only public published deletion", () => {
   assert.equal(
     PUBLIC_PUBLISHING_CONTRACT.platforms.tiktok.publishedDeletion.available,
     false,
+  );
+});
+
+test("generated contract exposes public account connection metadata", () => {
+  assert.deepEqual(PUBLIC_PUBLISHING_CONTRACT.accounts.connectionTypes, [
+    "oauth",
+    "bot_code",
+    "api_key",
+  ]);
+  assert.equal(
+    PUBLIC_PUBLISHING_CONTRACT.accounts.platforms.instagram.connectionType,
+    "oauth",
+  );
+  assert.equal(
+    PUBLIC_PUBLISHING_CONTRACT.accounts.platforms.telegram.connectionType,
+    "bot_code",
+  );
+  assert.equal(
+    PUBLIC_PUBLISHING_CONTRACT.accounts.platforms.wircle.connectionType,
+    "api_key",
+  );
+  assert.ok(
+    PUBLIC_PUBLISHING_CONTRACT.accounts.errorCodes.includes(
+      "RECONNECT_IDENTITY_MISMATCH",
+    ),
   );
 });
 

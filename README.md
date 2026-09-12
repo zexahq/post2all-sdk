@@ -4,10 +4,10 @@ Open-source TypeScript SDK and CLI for the [post2all](https://www.post2all.com) 
 
 ## Packages
 
-| Package                           | Description                                                    |
-| --------------------------------- | -------------------------------------------------------------- |
-| [`@post2all/sdk`](./packages/sdk) | TypeScript SDK — typed client for publishing and analytics     |
-| [`@post2all/cli`](./packages/cli) | CLI tool — manage posts, accounts, and analytics from terminal |
+| Package                           | Description                                                                      |
+| --------------------------------- | -------------------------------------------------------------------------------- |
+| [`@post2all/sdk`](./packages/sdk) | TypeScript SDK — typed client for account connections, publishing, and analytics |
+| [`@post2all/cli`](./packages/cli) | CLI tool — connect accounts and manage posts/analytics from terminal             |
 
 ## Quick start
 
@@ -36,7 +36,7 @@ const accounts = await client.listAccounts();
 const analytics = await client.getAccountAnalytics(accounts.accounts[0].id);
 ```
 
-The SDK and CLI expose normalized account analytics, provider-wide post performance (including external posts when supported), and per-target analytics for post2all posts.
+The SDK and CLI can also start headless social-account connections. OAuth users authorize directly with the social network and do not need a post2all account or login session. They also expose normalized account analytics, provider-wide post performance (including external posts when supported), and per-target analytics for post2all posts.
 
 ## Development
 

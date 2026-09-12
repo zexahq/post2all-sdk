@@ -377,6 +377,11 @@ export const socialAccountSchema = z.object({
   displayName: z.string().nullable(),
   avatarUrl: z.string().nullable(),
   status: z.enum(["active", "expired", "revoked", "error"]).or(z.string()),
+  lastError: z.string().nullable().optional(),
+  reconnectable: z.boolean().optional(),
+  connectionType: z
+    .enum(PUBLIC_PUBLISHING_CONTRACT.accounts.connectionTypes)
+    .optional(),
   supportedPostTypes: z.object({
     text: z.boolean(),
     image: z.boolean(),
@@ -387,6 +392,151 @@ export const socialAccountSchema = z.object({
 
 export const listAccountsResponseSchema = z.object({
   accounts: z.array(socialAccountSchema),
+});
+
+const publicAccountConnectionContract = PUBLIC_PUBLISHING_CONTRACT.accounts;
+
+export const accountConnectionTypeSchema = z.enum(
+  publicAccountConnectionContract.connectionTypes,
+);
+export const accountConnectionStatusSchema = z.enum(
+  publicAccountConnectionContract.connectionStatuses,
+);
+export const accountConnectionErrorCodeSchema = z.enum(
+  publicAccountConnectionContract.errorCodes,
+);
+
+const loopbackHosts = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
+
+export const accountRedirectUrlSchema = z
+  .string()
+  .max(publicAccountConnectionContract.redirectUrlMaxLength)
+  .url()
+  .superRefine((value, ctx) => {
+    let url: URL;
+    try {
+      url = new URL(value);
+    } catch {
+      ctx.addIssue({ code: "custom", message: "Redirect URL is invalid" });
+      return;
+    }
+    if (url.username || url.password) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Redirect URL must not contain credentials",
+      });
+    }
+    if (url.hash) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Redirect URL must not contain a fragment",
+      });
+    }
+    if (url.protocol === "https:") return;
+    if (url.protocol === "http:" && loopbackHosts.has(url.hostname)) return;
+    ctx.addIssue({
+      code: "custom",
+      message:
+        "Redirect URL must use HTTPS, except HTTP loopback URLs for local development",
+    });
+  });
+
+export const wircleAccountCredentialsSchema = z
+  .object({
+    apiKey: z.string().min(1),
+    profileHandle: z.string().min(1),
+  })
+  .strict();
+
+const oauthAccountConnectInputSchema = z
+  .object({
+    redirectUrl: accountRedirectUrlSchema.optional(),
+    handle: z.string().min(1).max(253).optional(),
+  })
+  .strict();
+
+const telegramAccountConnectInputSchema = z.object({}).strict();
+const wircleAccountConnectInputSchema = z
+  .object({ credentials: wircleAccountCredentialsSchema })
+  .strict();
+
+export function accountConnectInputSchema(platform: Platform) {
+  if (platform === "telegram") return telegramAccountConnectInputSchema;
+  if (platform === "wircle") return wircleAccountConnectInputSchema;
+  return oauthAccountConnectInputSchema;
+}
+
+export const accountReconnectInputSchema = z
+  .object({
+    redirectUrl: accountRedirectUrlSchema.optional(),
+    handle: z.string().min(1).max(253).optional(),
+    credentials: wircleAccountCredentialsSchema.optional(),
+  })
+  .strict();
+
+export const accountPlatformSchema = z.object({
+  platform: platformSchema,
+  name: z.string(),
+  authType: z.enum(["oauth", "bot", "api_key"]),
+  connectionType: accountConnectionTypeSchema,
+  releaseStatus: z.string(),
+  canConnect: z.boolean(),
+  supportsReconnect: z.boolean(),
+  requiresBrowser: z.boolean(),
+});
+
+export const accountPlatformsResponseSchema = z.object({
+  platforms: z.array(accountPlatformSchema),
+  usage: z.object({
+    totalConnected: z.number().int().nonnegative(),
+    maxConnectedAccounts: z.number().int().nonnegative(),
+    remainingSlots: z.number().int().nonnegative(),
+    canConnectMore: z.boolean(),
+  }),
+});
+
+export const accountConnectionStartSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("oauth"),
+    connectionId: z.string(),
+    authorizationUrl: z.string().url(),
+    expiresAt: z.string(),
+  }),
+  z.object({
+    type: z.literal("bot_code"),
+    connectionId: z.string(),
+    code: z.string(),
+    botUsername: z.string(),
+    expiresAt: z.string(),
+  }),
+  z.object({
+    type: z.literal("api_key"),
+    connectionId: z.string(),
+    status: z.literal("connected"),
+    accountIds: z.array(z.string()).min(1),
+  }),
+]);
+
+export const accountConnectionResponseSchema = z.object({
+  connectionId: z.string(),
+  platform: platformSchema,
+  type: accountConnectionTypeSchema,
+  status: accountConnectionStatusSchema,
+  expiresAt: z.string(),
+  accountIds: z.array(z.string()),
+  error: z
+    .object({
+      code: accountConnectionErrorCodeSchema,
+      message: z.string(),
+    })
+    .nullable(),
+});
+
+export const getAccountResponseSchema = z.object({
+  account: socialAccountSchema,
+});
+export const disconnectAccountResponseSchema = z.object({
+  success: z.literal(true),
 });
 
 // ─── Analytics contracts ────────────────────────────────────────────────────
@@ -869,6 +1019,20 @@ export type TiktokSettings = z.infer<typeof tiktokSettingsSchema>;
 export type WircleSettings = z.infer<typeof wircleSettingsSchema>;
 
 export type SocialAccount = z.infer<typeof socialAccountSchema>;
+export type AccountPlatform = z.infer<typeof accountPlatformSchema>;
+export type AccountPlatformsResponse = z.infer<
+  typeof accountPlatformsResponseSchema
+>;
+export type AccountConnectionStart = z.infer<
+  typeof accountConnectionStartSchema
+>;
+export type AccountConnectionResponse = z.infer<
+  typeof accountConnectionResponseSchema
+>;
+export type GetAccountResponse = z.infer<typeof getAccountResponseSchema>;
+export type DisconnectAccountResponse = z.infer<
+  typeof disconnectAccountResponseSchema
+>;
 export type AnalyticsMetric = z.infer<typeof analyticsMetricSchema>;
 export type AnalyticsMetricDefinition = z.infer<
   typeof analyticsMetricDefinitionSchema
@@ -921,6 +1085,12 @@ export type ConfirmMediaUploadResponse = z.infer<
 >;
 
 export type CreatePostInput = z.input<typeof createPostInputSchema>;
+export type ConnectAccountInput = {
+  redirectUrl?: string;
+  handle?: string;
+  credentials?: z.input<typeof wircleAccountCredentialsSchema>;
+};
+export type ReconnectAccountInput = z.input<typeof accountReconnectInputSchema>;
 export type UpdatePostInput = z.input<typeof updatePostInputSchema>;
 export type RetryPostInput = z.input<typeof retryPostInputSchema>;
 export type ListPostsInput = z.input<typeof listPostsInputSchema>;

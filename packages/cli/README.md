@@ -26,6 +26,41 @@ Call `constraints` once before composing to load every platform limit and connec
 
 Treat publishing options as the source of truth for text, media, and field constraints. Limits can be account-specific—for example, X paid tiers receive a different text limit. Do not pass `--type`. Composition is inferred from attached media; mixed image/video is allowed only when platform `media.allowMixedMedia` is true. When `capability.media.altText` is present, use `--media` to set optional alt text on each media item. X intentionally does not expose that capability.
 
+## Connect and manage accounts
+
+List the connection methods currently available to your workspace:
+
+```bash
+post2all account platforms
+```
+
+Start an OAuth connection:
+
+```bash
+post2all account connect instagram \
+  --redirect-url https://app.example.com/settings/social/complete
+```
+
+The CLI prints the provider authorization URL and a connection ID. Open the URL in the end user's browser. The user signs in directly with the social provider and does **not** need a post2all account or login session.
+
+Check the authoritative result with:
+
+```bash
+post2all account connection <connectionId>
+```
+
+Other lifecycle commands:
+
+```bash
+post2all account get <accountId> --json
+post2all account reconnect <accountId> --redirect-url https://app.example.com/settings/social/complete
+post2all account disconnect <accountId>
+```
+
+Telegram prints a bot username and short-lived connection code instead of an OAuth URL. Wircle uses `--api-key` and `--profile-handle`.
+
+For automation, add `--json` and keep the post2all API key on the trusted backend/CLI host rather than exposing it to browser code.
+
 ## Analytics
 
 Read account-level analytics:

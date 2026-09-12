@@ -5,6 +5,12 @@ import { z } from "zod";
 
 import { Post2allApiError } from "./errors.js";
 import {
+  type AccountConnectionResponse,
+  accountConnectionResponseSchema,
+  type AccountConnectionStart,
+  accountConnectionStartSchema,
+  type AccountPlatformsResponse,
+  accountPlatformsResponseSchema,
   type AccountAnalyticsInput,
   accountAnalyticsInputSchema,
   type AccountAnalyticsPostsInput,
@@ -14,9 +20,14 @@ import {
   type AccountAnalyticsResponse,
   accountAnalyticsResponseSchema,
   type ApiErrorBody,
+  type ConnectAccountInput,
   type CreatePostInput,
   createPostResponseSchema,
   type CreatePostResponse,
+  type DisconnectAccountResponse,
+  disconnectAccountResponseSchema,
+  type GetAccountResponse,
+  getAccountResponseSchema,
   type GetPostResponse,
   getPostResponseSchema,
   type GetAccountPublishingOptionsResponse,
@@ -55,6 +66,11 @@ import {
   createMediaUploadInputSchema,
   createPostInputSchema,
   listPostsInputSchema,
+  accountConnectInputSchema,
+  accountReconnectInputSchema,
+  type Platform,
+  platformSchema,
+  type ReconnectAccountInput,
   updatePostInputSchema,
 } from "./types.js";
 
@@ -124,6 +140,98 @@ export class Post2allClient {
   public async listAccounts(): Promise<ListAccountsResponse> {
     const response = await this.request("/accounts");
     return this.parseJson(response, listAccountsResponseSchema);
+  }
+
+  public async listAccountPlatforms(): Promise<AccountPlatformsResponse> {
+    const response = await this.request("/accounts/platforms");
+    return this.parseJson(response, accountPlatformsResponseSchema);
+  }
+
+  public async getAccount(accountId: string): Promise<GetAccountResponse> {
+    if (!accountId) {
+      throw new Post2allApiError("accountId is required", {
+        status: 400,
+        code: "INVALID_REQUEST",
+      });
+    }
+    const response = await this.request(
+      `/accounts/${encodeURIComponent(accountId)}`,
+    );
+    return this.parseJson(response, getAccountResponseSchema);
+  }
+
+  public async connectAccount(
+    platform: Platform,
+    input: ConnectAccountInput = {},
+  ): Promise<AccountConnectionStart> {
+    platform = platformSchema.parse(platform);
+    input = accountConnectInputSchema(platform).parse(
+      input,
+    ) as ConnectAccountInput;
+    const response = await this.request(
+      `/accounts/connect/${encodeURIComponent(platform)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      },
+    );
+    return this.parseJson(response, accountConnectionStartSchema);
+  }
+
+  public async getAccountConnection(
+    connectionId: string,
+  ): Promise<AccountConnectionResponse> {
+    if (!connectionId) {
+      throw new Post2allApiError("connectionId is required", {
+        status: 400,
+        code: "INVALID_REQUEST",
+      });
+    }
+    const response = await this.request(
+      `/accounts/connections/${encodeURIComponent(connectionId)}`,
+    );
+    return this.parseJson(response, accountConnectionResponseSchema);
+  }
+
+  public async reconnectAccount(
+    accountId: string,
+    input: ReconnectAccountInput = {},
+  ): Promise<AccountConnectionStart> {
+    if (!accountId) {
+      throw new Post2allApiError("accountId is required", {
+        status: 400,
+        code: "INVALID_REQUEST",
+      });
+    }
+    input = accountReconnectInputSchema.parse(input);
+    const response = await this.request(
+      `/accounts/${encodeURIComponent(accountId)}/reconnect`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      },
+    );
+    return this.parseJson(response, accountConnectionStartSchema);
+  }
+
+  public async disconnectAccount(
+    accountId: string,
+  ): Promise<DisconnectAccountResponse> {
+    if (!accountId) {
+      throw new Post2allApiError("accountId is required", {
+        status: 400,
+        code: "INVALID_REQUEST",
+      });
+    }
+    const response = await this.request(
+      `/accounts/${encodeURIComponent(accountId)}`,
+      {
+        method: "DELETE",
+      },
+    );
+    return this.parseJson(response, disconnectAccountResponseSchema);
   }
 
   public async getAccountAnalytics(

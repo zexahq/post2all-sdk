@@ -43,7 +43,56 @@ const { post } = await client.createPost({
 
 `targets` is a discriminated union. Once `platform` is selected, TypeScript and Zod only accept settings supported by that platform.
 
-Platform IDs, settings fields, fixed enums, limits, the static `publishedDeletion.available` capability, and sanitized analytics schema metadata are generated from the private monorepo's public contract. Do not edit the generated contract file in this repository; the release synchronization job regenerates it.
+Platform IDs, settings fields, fixed enums, limits, static account-connection metadata, the `publishedDeletion.available` capability, and sanitized analytics schema metadata are generated from the private monorepo's public contract. Do not edit the generated contract file in this repository; the release synchronization job regenerates it.
+
+## Connect social accounts from your SaaS
+
+post2all can be the social-account backend for your own product. Your server keeps the post2all API key; the end user's browser only visits the social provider authorization page and your own callback URL.
+
+```ts
+const started = await client.connectAccount("instagram", {
+  redirectUrl: "https://app.example.com/settings/social/complete",
+});
+
+// Send the user's browser to started.authorizationUrl.
+console.log(started.connectionId, started.authorizationUrl);
+```
+
+The user does **not** need a post2all account, post2all login, or post2all browser session. After the provider callback, post2all returns the browser to your `redirectUrl`. Verify the authoritative result from your backend:
+
+```ts
+const connection = await client.getAccountConnection(started.connectionId);
+
+if (connection.status === "connected") {
+  const account = await client.getAccount(connection.accountIds[0]);
+  console.log(account.account);
+}
+```
+
+Never expose your post2all API key in browser code. The browser redirect is a UX handoff; use `getAccountConnection()` server-side before trusting the result.
+
+Reconnect the exact provider identity later if credentials expire or scopes change:
+
+```ts
+const reconnect = await client.reconnectAccount("acc_instagram_123", {
+  redirectUrl: "https://app.example.com/settings/social/complete",
+});
+```
+
+post2all rejects a reconnect if the newly authorized provider identity does not match the existing account.
+
+Telegram uses the same API with a bot-code response, and Wircle accepts credentials directly:
+
+```ts
+const telegram = await client.connectAccount("telegram");
+
+const wircle = await client.connectAccount("wircle", {
+  credentials: {
+    apiKey: process.env.WIRCLE_API_KEY!,
+    profileHandle: "@maker",
+  },
+});
+```
 
 ## Delivery modes
 
@@ -160,6 +209,12 @@ await client.createPost({
 ## API
 
 - `listAccounts()`
+- `listAccountPlatforms()`
+- `connectAccount(platform, input?)`
+- `getAccountConnection(connectionId)`
+- `getAccount(accountId)`
+- `reconnectAccount(accountId, input?)`
+- `disconnectAccount(accountId)`
 - `getAccountAnalytics(accountId, input?)`
 - `listAccountAnalyticsPosts(accountId, input?)`
 - `getPublishingSchema(accountIds)`

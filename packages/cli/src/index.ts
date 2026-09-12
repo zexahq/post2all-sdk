@@ -7,6 +7,7 @@ import { dirname, join } from "node:path";
 import {
   Post2allApiError,
   Post2allClient,
+  platformSchema,
   postMediaInputSchema,
   postTargetsSchema,
   type AccountAnalyticsInput,
@@ -15,6 +16,7 @@ import {
   type CreatePostInput,
   type Delivery,
   type PostTarget,
+  type Platform,
   type UpdatePostInput,
   type RetryPostInput,
 } from "@post2all/sdk";
@@ -110,6 +112,14 @@ type AccountAnalyticsPostsOptions = AnalyticsOptions & {
 
 type PostAnalyticsOptions = {
   refresh?: boolean;
+  json?: boolean;
+};
+
+type AccountConnectionOptions = {
+  redirectUrl?: string;
+  handle?: string;
+  apiKey?: string;
+  profileHandle?: string;
   json?: boolean;
 };
 
@@ -283,6 +293,62 @@ function analyticsInput(options: AnalyticsOptions): AccountAnalyticsInput {
     ...(options.endDate !== undefined ? { endDate: options.endDate } : {}),
     ...(options.refresh !== undefined ? { refresh: options.refresh } : {}),
   };
+}
+
+function accountConnectionInput(
+  platform: Platform,
+  options: AccountConnectionOptions,
+) {
+  if (platform === "wircle") {
+    if (!options.apiKey || !options.profileHandle) {
+      throw new Error("Wircle requires --api-key and --profile-handle");
+    }
+    return {
+      credentials: {
+        apiKey: options.apiKey,
+        profileHandle: options.profileHandle,
+      },
+    };
+  }
+
+  if (platform === "telegram") return {};
+
+  return {
+    ...(options.redirectUrl !== undefined
+      ? { redirectUrl: options.redirectUrl }
+      : {}),
+    ...(options.handle !== undefined ? { handle: options.handle } : {}),
+  };
+}
+
+function printAccountConnectionStart(
+  result: Awaited<ReturnType<Post2allClient["connectAccount"]>>,
+): void {
+  if (result.type === "oauth") {
+    console.log("Open this URL to authorize the social account:");
+    console.log(result.authorizationUrl);
+    console.log(`Connection ID: ${result.connectionId}`);
+    console.log("After authorization, check status with:");
+    console.log(`post2all account connection ${result.connectionId}`);
+    return;
+  }
+
+  if (result.type === "bot_code") {
+    const botUsername = result.botUsername.startsWith("@")
+      ? result.botUsername
+      : `@${result.botUsername}`;
+    console.log(
+      `Open Telegram and message ${botUsername} with this connection code:`,
+    );
+    console.log(result.code);
+    console.log(`Connection ID: ${result.connectionId}`);
+    console.log("Then check status with:");
+    console.log(`post2all account connection ${result.connectionId}`);
+    return;
+  }
+
+  console.log(`Connected account${result.accountIds.length === 1 ? "" : "s"}:`);
+  for (const accountId of result.accountIds) console.log(accountId);
 }
 
 function parseCsv(input: string): string[] {
@@ -519,6 +585,166 @@ program
 const accountCommand = program
   .command("account")
   .description("Inspect a connected account");
+
+accountCommand
+  .command("platforms")
+  .description("List social platforms available for API account connections")
+  .option("--json", "Output JSON")
+  .action(async (options: { json?: boolean }) => {
+    try {
+      const client = await createClient(program.opts<RootOptions>());
+      const response = await client.listAccountPlatforms();
+
+      if (options.json) {
+        console.log(JSON.stringify(response, null, 2));
+        return;
+      }
+
+      printOutput(
+        response.platforms.map((platform) => ({
+          platform: platform.platform,
+          name: platform.name,
+          connection: platform.connectionType,
+          available: platform.canConnect,
+          browser: platform.requiresBrowser,
+          reconnect: platform.supportsReconnect,
+        })),
+      );
+      console.log(
+        `Connected accounts: ${response.usage.totalConnected}/${response.usage.maxConnectedAccounts} (${response.usage.remainingSlots} remaining)`,
+      );
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+accountCommand
+  .command("get")
+  .description("Get one connected social account")
+  .argument("<accountId>", "Social account ID")
+  .option("--json", "Output JSON")
+  .action(async (accountId: string, options: { json?: boolean }) => {
+    try {
+      const client = await createClient(program.opts<RootOptions>());
+      const response = await client.getAccount(accountId);
+
+      if (options.json) {
+        console.log(JSON.stringify(response, null, 2));
+        return;
+      }
+      printOutput([response.account]);
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+accountCommand
+  .command("connect")
+  .description("Start a social account connection")
+  .argument("<platform>", "Social platform")
+  .option("--redirect-url <url>", "Return the browser to this URL after OAuth")
+  .option("--handle <handle>", "Bluesky handle or authorization server")
+  .option(
+    "--api-key <key>",
+    "API key for credential-based platforms such as Wircle",
+  )
+  .option("--profile-handle <handle>", "Profile handle for Wircle")
+  .option("--json", "Output JSON")
+  .action(async (platformValue: string, options: AccountConnectionOptions) => {
+    try {
+      const platform = platformSchema.parse(platformValue);
+      const client = await createClient(program.opts<RootOptions>());
+      const result = await client.connectAccount(
+        platform,
+        accountConnectionInput(platform, options),
+      );
+
+      if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
+        return;
+      }
+      printAccountConnectionStart(result);
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+accountCommand
+  .command("connection")
+  .description("Check an account connection started by API or CLI")
+  .argument("<connectionId>", "Connection ID")
+  .option("--json", "Output JSON")
+  .action(async (connectionId: string, options: { json?: boolean }) => {
+    try {
+      const client = await createClient(program.opts<RootOptions>());
+      const response = await client.getAccountConnection(connectionId);
+
+      if (options.json) {
+        console.log(JSON.stringify(response, null, 2));
+        return;
+      }
+
+      printOutput([
+        {
+          connectionId: response.connectionId,
+          platform: response.platform,
+          type: response.type,
+          status: response.status,
+          accountIds: response.accountIds.join(", ") || "—",
+          error: response.error?.message ?? "—",
+          expiresAt: response.expiresAt,
+        },
+      ]);
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+accountCommand
+  .command("reconnect")
+  .description("Reconnect the exact social identity for an existing account")
+  .argument("<accountId>", "Social account ID")
+  .option("--redirect-url <url>", "Return the browser to this URL after OAuth")
+  .option("--handle <handle>", "Bluesky handle or authorization server")
+  .option("--api-key <key>", "Replacement Wircle API key")
+  .option("--profile-handle <handle>", "Wircle profile handle")
+  .option("--json", "Output JSON")
+  .action(async (accountId: string, options: AccountConnectionOptions) => {
+    try {
+      const client = await createClient(program.opts<RootOptions>());
+      const { account } = await client.getAccount(accountId);
+      const input = accountConnectionInput(account.platform, options);
+      const result = await client.reconnectAccount(accountId, input);
+
+      if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
+        return;
+      }
+      printAccountConnectionStart(result);
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+accountCommand
+  .command("disconnect")
+  .description("Disconnect a social account from post2all")
+  .argument("<accountId>", "Social account ID")
+  .option("--json", "Output JSON")
+  .action(async (accountId: string, options: { json?: boolean }) => {
+    try {
+      const client = await createClient(program.opts<RootOptions>());
+      const response = await client.disconnectAccount(accountId);
+
+      if (options.json) {
+        console.log(JSON.stringify(response, null, 2));
+        return;
+      }
+      console.log(`Disconnected account ${accountId}.`);
+    } catch (error) {
+      handleError(error);
+    }
+  });
 
 accountCommand
   .command("publishing-options")
@@ -893,22 +1119,27 @@ postCommand
     "Timezone-aware ISO date for scheduled retry",
   )
   .option("--json", "Output JSON")
-  .action(async (postId: string, options: { scheduledAt?: string; json?: boolean }) => {
-    try {
-      const client = await createClient(program.opts<RootOptions>());
-      const input: RetryPostInput = options.scheduledAt
-        ? { scheduledAt: options.scheduledAt }
-        : {};
-      const response = await client.retryPost(postId, input);
-      if (options.json) {
-        console.log(JSON.stringify(response, null, 2));
-        return;
+  .action(
+    async (
+      postId: string,
+      options: { scheduledAt?: string; json?: boolean },
+    ) => {
+      try {
+        const client = await createClient(program.opts<RootOptions>());
+        const input: RetryPostInput = options.scheduledAt
+          ? { scheduledAt: options.scheduledAt }
+          : {};
+        const response = await client.retryPost(postId, input);
+        if (options.json) {
+          console.log(JSON.stringify(response, null, 2));
+          return;
+        }
+        printOutput([response.retry]);
+      } catch (error) {
+        handleError(error);
       }
-      printOutput([response.retry]);
-    } catch (error) {
-      handleError(error);
-    }
-  });
+    },
+  );
 
 postCommand
   .command("delete-published")
