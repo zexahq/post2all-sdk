@@ -2,6 +2,8 @@
 
 Type-safe TypeScript client for the post2all REST API.
 
+Full guides and examples: [post2all TypeScript SDK documentation](https://www.post2all.com/docs/sdk).
+
 ## Install
 
 ```bash
@@ -80,6 +82,47 @@ const reconnect = await client.reconnectAccount("acc_instagram_123", {
 ```
 
 post2all rejects a reconnect if the newly authorized provider identity does not match the existing account.
+
+### Profiles for clients and SaaS tenants
+
+Business and Agency workspaces can keep clients, brands, or customers in optional Profiles. Business supports up to 2 profiles; Agency supports up to 10 profiles.
+
+```ts
+const { profile } = await client.createProfile({
+  name: "Acme",
+  externalId: "customer_123",
+});
+const acme = client.forProfile(profile.id);
+const accounts = await acme.listAccounts();
+```
+
+The profile client sends `x-profile-id` automatically. It is an organization/filtering context, not a separate security credential: profile-aware lists are filtered, new connections are assigned to that profile, and new posts are organized under it. Profile management remains organization-scoped.
+
+Move an account with `setAccountProfile(accountId, profileId)` or pass `null` to clear its profile assignment. Each account belongs to at most one profile at a time. Moving an account does not move historical posts or break existing drafts, schedules, retries, analytics, or post targets. Deleting a profile preserves its accounts and posts as profile-less resources.
+
+The recommended SaaS pattern is to keep one root client for organization-level profile management, then use one scoped client per customer:
+
+```ts
+const root = new Post2allClient({
+  apiKey: process.env.POST2ALL_API_KEY!,
+});
+
+const { profile } = await root.createProfile({
+  name: "Acme",
+  externalId: "customer_123",
+});
+
+const acme = root.forProfile(profile.id);
+
+const started = await acme.connectAccount("instagram", {
+  redirectUrl: "https://app.example.com/social/complete",
+});
+
+const { accounts } = await acme.listAccounts();
+const posts = await acme.listPosts();
+```
+
+Omitting profile context means the complete workspace. `externalId` is optional and is intended for mapping a post2all profile to your own customer or tenant ID. Keep the workspace API key on your trusted backend; the workspace remains the authorization boundary.
 
 Telegram uses the same API with a bot-code response, and Wircle accepts credentials directly:
 
@@ -177,6 +220,24 @@ const result = await client.getPostAnalytics("post_abc");
 
 Inspect each target's `analyticsStatus` before interpreting an empty metrics array. Unavailable provider data, reconnect requirements, unpublished targets, and provider errors are not zero engagement.
 
+## Retry failed post targets
+
+Retry a failed or partially failed post without republishing successful targets:
+
+```ts
+await client.retryPost("post_abc");
+```
+
+Schedule only the failed-target retry for later when needed:
+
+```ts
+await client.retryPost("post_abc", {
+  scheduledAt: "2026-09-21T14:00:00+05:30",
+});
+```
+
+For example, if Instagram and YouTube succeeded but TikTok failed, `retryPost()` publishes only the failed TikTok target.
+
 ## Media
 
 ```ts
@@ -208,6 +269,12 @@ await client.createPost({
 
 ## API
 
+- `listProfiles(input?)`
+- `getProfile(profileId)`
+- `createProfile(input)`
+- `updateProfile(profileId, input)`
+- `deleteProfile(profileId)`
+- `forProfile(profileId)`
 - `listAccounts()`
 - `listAccountPlatforms()`
 - `connectAccount(platform, input?)`
@@ -215,6 +282,7 @@ await client.createPost({
 - `getAccount(accountId)`
 - `reconnectAccount(accountId, input?)`
 - `disconnectAccount(accountId)`
+- `setAccountProfile(accountId, profileId)`
 - `getAccountAnalytics(accountId, input?)`
 - `listAccountAnalyticsPosts(accountId, input?)`
 - `getPublishingSchema(accountIds)`
@@ -228,6 +296,7 @@ await client.createPost({
 - `getPost(postId)`
 - `getPostAnalytics(postId, input?)`
 - `updatePost(postId, input)`
+- `retryPost(postId, input?)` — retries only failed targets and can optionally schedule that retry
 - `deletePublishedPost(postId, postAccountId)` — removes one published social post on a public deletion platform while keeping the post2all post
 - `deletePost(postId)` — removes the post from post2all; already-published social content remains live
 - `cancelPost(postId)`

@@ -42,6 +42,142 @@ test("direct SDK usage does not claim to be the CLI", async () => {
   assert.equal(headers?.get("x-post2all-client-version"), null);
 });
 
+test("forProfile scopes account and post requests with x-profile-id", async () => {
+  const calls = [];
+  const client = new Post2allClient({
+    apiKey: "amp_test",
+    baseUrl: "https://example.test/api/v1",
+    fetchImplementation: async (url, init) => {
+      calls.push({ url: String(url), headers: new Headers(init?.headers) });
+      return accountListResponse();
+    },
+  }).forProfile("profile-1");
+
+  await client.listAccounts();
+
+  assert.equal(calls[0]?.headers.get("x-profile-id"), "profile-1");
+  assert.equal(calls[0]?.headers.get("x-post2all-profile-id"), null);
+});
+
+test("profile lifecycle methods use the public profile endpoints without profile scoping", async () => {
+  const calls = [];
+  const profile = {
+    id: "profile-1",
+    name: "Customer One",
+    externalId: "customer-1",
+    metadata: {},
+    createdAt: "2026-09-13T00:00:00.000Z",
+    updatedAt: "2026-09-13T00:00:00.000Z",
+  };
+  const client = new Post2allClient({
+    apiKey: "amp_test",
+    baseUrl: "https://example.test/api/v1",
+    fetchImplementation: async (url, init) => {
+      const path = new URL(String(url)).pathname;
+      calls.push({
+        url: String(url),
+        method: init?.method ?? "GET",
+        headers: new Headers(init?.headers),
+        body: init?.body ? JSON.parse(init.body) : undefined,
+      });
+      if (path.endsWith("/profiles") && (init?.method ?? "GET") === "GET") {
+        return Response.json({ profiles: [profile] });
+      }
+      if (path.endsWith("/profiles") && init?.method === "POST") {
+        return Response.json({ profile });
+      }
+      if (path.endsWith("/profiles/profile-1") && init?.method === "PATCH") {
+        return Response.json({ profile: { ...profile, name: "Renamed" } });
+      }
+      if (path.endsWith("/profiles/profile-1") && init?.method === "DELETE") {
+        return Response.json({ success: true });
+      }
+      return Response.json({ profile });
+    },
+  }).forProfile("profile-1");
+
+  const listed = await client.listProfiles();
+  await client.createProfile({
+    name: "Customer One",
+    externalId: "customer-1",
+  });
+  await client.getProfile("profile-1");
+  const updated = await client.updateProfile("profile-1", { name: "Renamed" });
+  const deleted = await client.deleteProfile("profile-1");
+
+  assert.equal(listed.profiles[0]?.id, "profile-1");
+  assert.equal(updated.profile.name, "Renamed");
+  assert.equal(deleted.success, true);
+  assert.equal(
+    calls.every((call) => call.headers.get("x-profile-id") === null),
+    true,
+  );
+});
+
+test("setAccountProfile sends nullable profile assignment", async () => {
+  let requestedInit;
+  const client = new Post2allClient({
+    apiKey: "amp_test",
+    baseUrl: "https://example.test/api/v1",
+    fetchImplementation: async (_url, init) => {
+      requestedInit = init;
+      return Response.json({
+        account: {
+          id: "account-1",
+          profileId: null,
+          platform: "instagram",
+          platformAccountId: "ig-1",
+          username: "creator",
+          displayName: "Creator",
+          avatarUrl: null,
+          status: "active",
+          lastError: null,
+          reconnectable: true,
+          connectionType: "oauth",
+          supportedPostTypes: { text: true, image: true, video: true },
+          createdAt: "2026-09-12T12:00:00.000Z",
+        },
+      });
+    },
+  });
+
+  const result = await client.setAccountProfile("account-1", null);
+  assert.equal(requestedInit?.method, "PATCH");
+  assert.deepEqual(JSON.parse(requestedInit?.body), { profileId: null });
+  assert.equal(result.account.profileId, null);
+});
+
+test("setAccountProfile remains an organization-level management action", async () => {
+  let headers;
+  const client = new Post2allClient({
+    apiKey: "amp_test",
+    baseUrl: "https://example.test/api/v1",
+    fetchImplementation: async (_url, init) => {
+      headers = new Headers(init?.headers);
+      return Response.json({
+        account: {
+          id: "account-1",
+          profileId: "profile-2",
+          platform: "instagram",
+          platformAccountId: "ig-1",
+          username: "creator",
+          displayName: "Creator",
+          avatarUrl: null,
+          status: "active",
+          lastError: null,
+          reconnectable: true,
+          connectionType: "oauth",
+          supportedPostTypes: { text: true, image: true, video: true },
+          createdAt: "2026-09-12T12:00:00.000Z",
+        },
+      });
+    },
+  }).forProfile("profile-1");
+
+  await client.setAccountProfile("account-1", "profile-2");
+  assert.equal(headers?.get("x-profile-id"), null);
+});
+
 test("connectAccount starts a headless OAuth connection with caller redirect", async () => {
   let requestedUrl;
   let requestedInit;

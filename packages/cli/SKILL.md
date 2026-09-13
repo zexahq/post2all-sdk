@@ -8,6 +8,8 @@ allowed-tools: Bash(post2all:*)
 
 Use the CLI to manage social posts through the post2all REST API.
 
+Business and Agency workspaces may use Profiles to organize clients or brands. Business supports 2 profiles and Agency supports up to 10 profiles. Discover them with `post2all profile list --json`, manage them with `post2all profile ...`, and put the global `--profile-id <profileId>` option before account/post commands to filter profile-aware lists and organize new resources. Profiles are not separate security tenants. Never invent a profile ID. Move an account with `post2all account profile <accountId> <profileId>` or use `--clear` to clear its profile assignment; existing posts keep their target relationship.
+
 ## Safety and authentication
 
 Validate credentials before acting:

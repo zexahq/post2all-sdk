@@ -21,7 +21,24 @@ test("account help exposes the public account lifecycle commands", async () => {
     "connection",
     "reconnect",
     "disconnect",
+    "profile",
   ]) {
     assert.match(stdout, new RegExp(`\\b${command}\\b`));
+  }
+});
+
+test("CLI exposes profile lifecycle commands and global profile scoping", async () => {
+  const [{ stdout: rootHelp }, { stdout: profileHelp }] = await Promise.all([
+    execFileAsync(process.execPath, ["dist/index.js", "--help"], {
+      cwd: new URL("..", import.meta.url),
+    }),
+    execFileAsync(process.execPath, ["dist/index.js", "profile", "--help"], {
+      cwd: new URL("..", import.meta.url),
+    }),
+  ]);
+
+  assert.match(rootHelp, /--profile-id <profileId>/);
+  for (const command of ["list", "get", "create", "update", "delete"]) {
+    assert.match(profileHelp, new RegExp(`\\b${command}\\b`));
   }
 });

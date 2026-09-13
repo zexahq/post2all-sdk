@@ -70,11 +70,22 @@ import {
   accountReconnectInputSchema,
   type Platform,
   platformSchema,
+  type CreateProfileInput,
+  createProfileInputSchema,
+  type UpdateProfileInput,
+  updateProfileInputSchema,
+  type ProfileListResponse,
+  profileListResponseSchema,
+  type ProfileResponse,
+  profileResponseSchema,
+  type ProfileDeleteResponse,
+  profileDeleteResponseSchema,
   type ReconnectAccountInput,
   updatePostInputSchema,
 } from "./types.js";
 
 const defaultBaseUrl = "https://app.post2all.com/api/v1";
+const profileScopeHeader = "x-profile-id";
 
 const mediaContentTypes: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -122,6 +133,7 @@ export type Post2allClientOptions = {
   baseUrl?: string;
   fetchImplementation?: typeof fetch;
   clientInfo?: Post2allClientInfo;
+  profileId?: string;
 };
 
 export class Post2allClient {
@@ -129,12 +141,110 @@ export class Post2allClient {
   private readonly baseUrl: string;
   private readonly fetchImplementation: typeof fetch;
   private readonly clientInfo?: Post2allClientInfo;
+  private readonly profileId?: string;
 
   public constructor(options: Post2allClientOptions) {
     this.apiKey = options.apiKey;
     this.baseUrl = options.baseUrl ?? defaultBaseUrl;
     this.fetchImplementation = options.fetchImplementation ?? fetch;
     this.clientInfo = options.clientInfo;
+    this.profileId = options.profileId;
+  }
+
+  public forProfile(profileId: string): Post2allClient {
+    const parsedProfileId = z
+      .string()
+      .min(1, "profileId is required")
+      .parse(profileId);
+    return new Post2allClient({
+      apiKey: this.apiKey,
+      baseUrl: this.baseUrl,
+      fetchImplementation: this.fetchImplementation,
+      clientInfo: this.clientInfo,
+      profileId: parsedProfileId,
+    });
+  }
+
+  public async listProfiles(
+    input: { externalId?: string } = {},
+  ): Promise<ProfileListResponse> {
+    const query = new URLSearchParams();
+    if (input.externalId !== undefined)
+      query.set("externalId", input.externalId);
+    const suffix = query.size > 0 ? `?${query.toString()}` : "";
+    const response = await this.request(`/profiles${suffix}`, undefined, false);
+    return this.parseJson(response, profileListResponseSchema);
+  }
+
+  public async getProfile(profileId: string): Promise<ProfileResponse> {
+    if (!profileId) {
+      throw new Post2allApiError("profileId is required", {
+        status: 400,
+        code: "INVALID_REQUEST",
+      });
+    }
+    const response = await this.request(
+      `/profiles/${encodeURIComponent(profileId)}`,
+      undefined,
+      false,
+    );
+    return this.parseJson(response, profileResponseSchema);
+  }
+
+  public async createProfile(
+    input: CreateProfileInput,
+  ): Promise<ProfileResponse> {
+    input = createProfileInputSchema.parse(input);
+    const response = await this.request(
+      "/profiles",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      },
+      false,
+    );
+    return this.parseJson(response, profileResponseSchema);
+  }
+
+  public async updateProfile(
+    profileId: string,
+    input: UpdateProfileInput,
+  ): Promise<ProfileResponse> {
+    if (!profileId) {
+      throw new Post2allApiError("profileId is required", {
+        status: 400,
+        code: "INVALID_REQUEST",
+      });
+    }
+    input = updateProfileInputSchema.parse(input);
+    const response = await this.request(
+      `/profiles/${encodeURIComponent(profileId)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      },
+      false,
+    );
+    return this.parseJson(response, profileResponseSchema);
+  }
+
+  public async deleteProfile(
+    profileId: string,
+  ): Promise<ProfileDeleteResponse> {
+    if (!profileId) {
+      throw new Post2allApiError("profileId is required", {
+        status: 400,
+        code: "INVALID_REQUEST",
+      });
+    }
+    const response = await this.request(
+      `/profiles/${encodeURIComponent(profileId)}`,
+      { method: "DELETE" },
+      false,
+    );
+    return this.parseJson(response, profileDeleteResponseSchema);
   }
 
   public async listAccounts(): Promise<ListAccountsResponse> {
@@ -232,6 +342,30 @@ export class Post2allClient {
       },
     );
     return this.parseJson(response, disconnectAccountResponseSchema);
+  }
+
+  public async setAccountProfile(
+    accountId: string,
+    profileId: string | null,
+  ): Promise<GetAccountResponse> {
+    if (!accountId) {
+      throw new Post2allApiError("accountId is required", {
+        status: 400,
+        code: "INVALID_REQUEST",
+      });
+    }
+    if (profileId !== null)
+      z.string().min(1, "profileId is required").parse(profileId);
+    const response = await this.request(
+      `/accounts/${encodeURIComponent(accountId)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profileId }),
+      },
+      false,
+    );
+    return this.parseJson(response, getAccountResponseSchema);
   }
 
   public async getAccountAnalytics(
@@ -548,7 +682,11 @@ export class Post2allClient {
     return this.parseJson(response, cancelPostResponseSchema);
   }
 
-  private async request(path: string, init?: RequestInit): Promise<Response> {
+  private async request(
+    path: string,
+    init?: RequestInit,
+    scoped = true,
+  ): Promise<Response> {
     const response = await this.fetchImplementation(`${this.baseUrl}${path}`, {
       ...init,
       headers: {
@@ -558,6 +696,9 @@ export class Post2allClient {
           : {}),
         ...(this.clientInfo?.version
           ? { "x-post2all-client-version": this.clientInfo.version }
+          : {}),
+        ...(scoped && this.profileId
+          ? { [profileScopeHeader]: this.profileId }
           : {}),
         ...init?.headers,
       },

@@ -55,6 +55,7 @@ type CliUpdateCache = {
 type RootOptions = {
   apiKey?: string;
   baseUrl?: string;
+  profileId?: string;
 };
 
 type DeliveryMode = "draft" | "now" | "scheduled";
@@ -120,6 +121,28 @@ type AccountConnectionOptions = {
   handle?: string;
   apiKey?: string;
   profileHandle?: string;
+  json?: boolean;
+};
+
+type ProfileListOptions = {
+  externalId?: string;
+  json?: boolean;
+};
+
+type ProfileCreateOptions = {
+  externalId?: string;
+  json?: boolean;
+};
+
+type ProfileUpdateOptions = {
+  name?: string;
+  externalId?: string;
+  clearExternalId?: boolean;
+  json?: boolean;
+};
+
+type AccountProfileOptions = {
+  clear?: boolean;
   json?: boolean;
 };
 
@@ -261,7 +284,7 @@ async function createClient(rootOptions: RootOptions): Promise<Post2allClient> {
     );
   }
 
-  return new Post2allClient({
+  const client = new Post2allClient({
     apiKey,
     baseUrl:
       rootOptions.baseUrl ??
@@ -274,6 +297,9 @@ async function createClient(rootOptions: RootOptions): Promise<Post2allClient> {
       ...(CLI_VERSION !== "unknown" ? { version: CLI_VERSION } : {}),
     },
   });
+  return rootOptions.profileId
+    ? client.forProfile(rootOptions.profileId)
+    : client;
 }
 
 function printOutput(value: unknown, asJson = false): void {
@@ -471,7 +497,144 @@ program
   .description("post2all CLI")
   .version(CLI_VERSION)
   .option("--api-key <apiKey>", "API key")
-  .option("--base-url <baseUrl>", "Override API base URL");
+  .option("--base-url <baseUrl>", "Override API base URL")
+  .option(
+    "--profile-id <profileId>",
+    "Scope account and post operations to one post2all profile",
+  );
+
+const profileCommand = program
+  .command("profile")
+  .description("Manage workspace profiles (Business and Agency)");
+
+profileCommand
+  .command("list")
+  .description("List profiles in the workspace")
+  .option("--external-id <externalId>", "Filter by your external customer ID")
+  .option("--json", "Output JSON")
+  .action(async (options: ProfileListOptions) => {
+    try {
+      const client = await createClient(program.opts<RootOptions>());
+      const response = await client.listProfiles({
+        externalId: options.externalId,
+      });
+      if (options.json) {
+        console.log(JSON.stringify(response, null, 2));
+        return;
+      }
+      printOutput(
+        response.profiles.map((profile) => ({
+          id: profile.id,
+          name: profile.name,
+          externalId: profile.externalId ?? "—",
+          createdAt: profile.createdAt,
+        })),
+      );
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+profileCommand
+  .command("get")
+  .description("Get one profile")
+  .argument("<profileId>", "Profile ID")
+  .option("--json", "Output JSON")
+  .action(async (profileId: string, options: { json?: boolean }) => {
+    try {
+      const client = await createClient(program.opts<RootOptions>());
+      const response = await client.getProfile(profileId);
+      if (options.json) {
+        console.log(JSON.stringify(response, null, 2));
+        return;
+      }
+      printOutput([response.profile]);
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+profileCommand
+  .command("create")
+  .description("Create a profile")
+  .argument("<name>", "Profile name")
+  .option("--external-id <externalId>", "Optional customer ID from your system")
+  .option("--json", "Output JSON")
+  .action(async (name: string, options: ProfileCreateOptions) => {
+    try {
+      const client = await createClient(program.opts<RootOptions>());
+      const response = await client.createProfile({
+        name,
+        ...(options.externalId ? { externalId: options.externalId } : {}),
+      });
+      if (options.json) {
+        console.log(JSON.stringify(response, null, 2));
+        return;
+      }
+      printOutput([response.profile]);
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+profileCommand
+  .command("update")
+  .description("Update a profile")
+  .argument("<profileId>", "Profile ID")
+  .option("--name <name>", "New profile name")
+  .option("--external-id <externalId>", "Set the external customer ID")
+  .option("--clear-external-id", "Remove the external customer ID")
+  .option("--json", "Output JSON")
+  .action(async (profileId: string, options: ProfileUpdateOptions) => {
+    try {
+      if (options.externalId && options.clearExternalId) {
+        throw new Error("Use --external-id or --clear-external-id, not both");
+      }
+      const changes = {
+        ...(options.name !== undefined ? { name: options.name } : {}),
+        ...(options.externalId !== undefined
+          ? { externalId: options.externalId }
+          : options.clearExternalId
+            ? { externalId: null }
+            : {}),
+      };
+      if (Object.keys(changes).length === 0) {
+        throw new Error(
+          "Provide --name, --external-id, or --clear-external-id",
+        );
+      }
+      const client = await createClient(program.opts<RootOptions>());
+      const response = await client.updateProfile(profileId, changes);
+      if (options.json) {
+        console.log(JSON.stringify(response, null, 2));
+        return;
+      }
+      printOutput([response.profile]);
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+profileCommand
+  .command("delete")
+  .description("Delete a profile without deleting its accounts or posts")
+  .argument("<profileId>", "Profile ID")
+  .option("--json", "Output JSON")
+  .action(async (profileId: string, options: { json?: boolean }) => {
+    try {
+      const client = await createClient(program.opts<RootOptions>());
+      const response = await client.deleteProfile(profileId);
+      if (options.json) {
+        console.log(JSON.stringify(response, null, 2));
+        return;
+      }
+      console.log(
+        `Deleted profile ${profileId}. Its accounts and posts are now global.`,
+      );
+    } catch (error) {
+      handleError(error);
+    }
+  });
 
 const configCommand = program
   .command("config")
@@ -745,6 +908,46 @@ accountCommand
       handleError(error);
     }
   });
+
+accountCommand
+  .command("profile")
+  .description("Assign a connected account to a profile or clear its profile")
+  .argument("<accountId>", "Social account ID")
+  .argument("[profileId]", "Destination profile ID")
+  .option("--clear", "Clear the account's profile assignment")
+  .option("--json", "Output JSON")
+  .action(
+    async (
+      accountId: string,
+      profileId: string | undefined,
+      options: AccountProfileOptions,
+    ) => {
+      try {
+        if (options.clear && profileId) {
+          throw new Error("Use a profile ID or --clear, not both");
+        }
+        if (!options.clear && !profileId) {
+          throw new Error("Provide a profile ID or use --clear");
+        }
+        const client = await createClient(program.opts<RootOptions>());
+        const response = await client.setAccountProfile(
+          accountId,
+          options.clear ? null : profileId!,
+        );
+        if (options.json) {
+          console.log(JSON.stringify(response, null, 2));
+          return;
+        }
+        console.log(
+          options.clear
+            ? `Cleared the profile assignment for account ${accountId}.`
+            : `Assigned account ${accountId} to profile ${profileId}.`,
+        );
+      } catch (error) {
+        handleError(error);
+      }
+    },
+  );
 
 accountCommand
   .command("publishing-options")

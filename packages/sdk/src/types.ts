@@ -371,6 +371,7 @@ export const createMediaUploadInputSchema = z
 
 export const socialAccountSchema = z.object({
   id: z.string(),
+  profileId: z.string().nullable().optional(),
   platform: platformSchema,
   platformAccountId: z.string(),
   username: z.string().nullable(),
@@ -519,6 +520,7 @@ export const accountConnectionStartSchema = z.discriminatedUnion("type", [
 
 export const accountConnectionResponseSchema = z.object({
   connectionId: z.string(),
+  profileId: z.string().nullable().optional(),
   platform: platformSchema,
   type: accountConnectionTypeSchema,
   status: accountConnectionStatusSchema,
@@ -536,6 +538,52 @@ export const getAccountResponseSchema = z.object({
   account: socialAccountSchema,
 });
 export const disconnectAccountResponseSchema = z.object({
+  success: z.literal(true),
+});
+
+// ─── Profiles ────────────────────────────────────────────────────────────────
+
+export const profileNameSchema = z.string().trim().min(1).max(120);
+export const profileExternalIdSchema = z.string().trim().min(1).max(255);
+export const profileMetadataSchema = z.record(z.string(), z.unknown());
+
+export const createProfileInputSchema = z
+  .object({
+    name: profileNameSchema,
+    externalId: profileExternalIdSchema.optional(),
+    metadata: profileMetadataSchema.optional(),
+  })
+  .strict();
+
+export const updateProfileInputSchema = z
+  .object({
+    name: profileNameSchema.optional(),
+    externalId: profileExternalIdSchema.nullable().optional(),
+    metadata: profileMetadataSchema.optional(),
+  })
+  .strict()
+  .refine(
+    (value) =>
+      value.name !== undefined ||
+      value.externalId !== undefined ||
+      value.metadata !== undefined,
+    { message: "At least one profile field must be provided" },
+  );
+
+export const profileSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  externalId: z.string().nullable(),
+  metadata: profileMetadataSchema,
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export const profileResponseSchema = z.object({ profile: profileSchema });
+export const profileListResponseSchema = z.object({
+  profiles: z.array(profileSchema),
+});
+export const profileDeleteResponseSchema = z.object({
   success: z.literal(true),
 });
 
@@ -897,6 +945,7 @@ export const postResponseTargetSchema = z
 
 export const listPostsItemSchema = z.object({
   id: z.string(),
+  profileId: z.string().nullable().optional(),
   content: z.string().nullable().optional(),
   status: postStatusSchema.or(z.string()),
   scheduledAt: z.string().nullable().optional(),
@@ -917,6 +966,7 @@ export const listPostsResponseSchema = z.object({
 export const getPostResponseSchema = z.object({
   post: z.object({
     id: z.string(),
+    profileId: z.string().nullable().optional(),
     content: z.string().nullable().optional(),
     media: z.array(postMediaSchema),
     status: postStatusSchema.or(z.string()),
@@ -931,6 +981,7 @@ export const getPostResponseSchema = z.object({
 export const createPostResponseSchema = z.object({
   post: z.object({
     id: z.string(),
+    profileId: z.string().nullable().optional(),
     content: z.string().nullable().optional(),
     status: postStatusSchema.or(z.string()),
     scheduledAt: z.string().nullable().optional(),
@@ -944,6 +995,7 @@ export const createPostResponseSchema = z.object({
 export const updatePostResponseSchema = z.object({
   post: z.object({
     id: z.string(),
+    profileId: z.string().nullable().optional(),
     content: z.string().nullable().optional(),
     status: postStatusSchema.or(z.string()),
     scheduledAt: z.string().nullable().optional(),
@@ -971,6 +1023,7 @@ export const deletePublishedPostResponseSchema = z.object({
 export const cancelPostResponseSchema = z.object({
   post: z.object({
     id: z.string(),
+    profileId: z.string().nullable().optional(),
     content: z.string().nullable().optional(),
     status: postStatusSchema.or(z.string()),
     scheduledAt: z.string().nullable().optional(),
@@ -1033,6 +1086,10 @@ export type GetAccountResponse = z.infer<typeof getAccountResponseSchema>;
 export type DisconnectAccountResponse = z.infer<
   typeof disconnectAccountResponseSchema
 >;
+export type Profile = z.infer<typeof profileSchema>;
+export type ProfileResponse = z.infer<typeof profileResponseSchema>;
+export type ProfileListResponse = z.infer<typeof profileListResponseSchema>;
+export type ProfileDeleteResponse = z.infer<typeof profileDeleteResponseSchema>;
 export type AnalyticsMetric = z.infer<typeof analyticsMetricSchema>;
 export type AnalyticsMetricDefinition = z.infer<
   typeof analyticsMetricDefinitionSchema
@@ -1091,6 +1148,8 @@ export type ConnectAccountInput = {
   credentials?: z.input<typeof wircleAccountCredentialsSchema>;
 };
 export type ReconnectAccountInput = z.input<typeof accountReconnectInputSchema>;
+export type CreateProfileInput = z.input<typeof createProfileInputSchema>;
+export type UpdateProfileInput = z.input<typeof updateProfileInputSchema>;
 export type UpdatePostInput = z.input<typeof updatePostInputSchema>;
 export type RetryPostInput = z.input<typeof retryPostInputSchema>;
 export type ListPostsInput = z.input<typeof listPostsInputSchema>;

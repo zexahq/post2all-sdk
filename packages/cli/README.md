@@ -14,6 +14,32 @@ Credentials are resolved in this order: `--api-key`, `POST2ALL_API_KEY`, then `~
 
 Check the installed version with `post2all --version`. On interactive commands, the CLI checks npm for a newer release at most once every 24 hours and prints an update command when one is available. It never auto-installs updates, skips checks for `--json`/non-interactive usage, and can be disabled with `POST2ALL_DISABLE_UPDATE_CHECK=1`.
 
+## Profiles
+
+Business and Agency workspaces can organize accounts and posts into optional Profiles. Business supports 2 profiles; Agency supports up to 10 profiles.
+
+```bash
+post2all profile list
+post2all profile create "Acme" --external-id customer_123
+post2all profile get prof_123 --json
+post2all profile update prof_123 --name "Acme Inc."
+post2all profile delete prof_123
+```
+
+Use a named profile as the organization/filtering context for account/post commands with the global option:
+
+```bash
+post2all --profile-id prof_123 accounts --json
+post2all --profile-id prof_123 posts --json
+```
+
+Assign an existing account to a profile or clear its profile assignment. Moving it changes where the account appears in profile-filtered lists; existing posts keep their target relationship:
+
+```bash
+post2all account profile acc_123 prof_123
+post2all account profile acc_123 --clear
+```
+
 ## Discover accounts
 
 ```bash

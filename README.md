@@ -36,7 +36,7 @@ const accounts = await client.listAccounts();
 const analytics = await client.getAccountAnalytics(accounts.accounts[0].id);
 ```
 
-The SDK and CLI can also start headless social-account connections. OAuth users authorize directly with the social network and do not need a post2all account or login session. They also expose normalized account analytics, provider-wide post performance (including external posts when supported), and per-target analytics for post2all posts.
+The SDK and CLI can also start headless social-account connections. OAuth users authorize directly with the social network and do not need a post2all account or login session. Business and Agency workspaces can create optional Profiles for clients, brands, or customers; `client.forProfile(profileId)` and CLI `--profile-id` provide a shared `x-profile-id` organization context for filtering lists and organizing new connections/posts. Profiles are not separate security tenants, and moving an account does not break existing post targets. Business supports 2 profiles and Agency supports up to 10 profiles. The SDK also exposes account-wide and per-post analytics plus failed-target retry without republishing successful targets.
 
 ## Development
 
