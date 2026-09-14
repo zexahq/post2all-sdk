@@ -1120,7 +1120,7 @@ postCommand
   )
   .option(
     "--media <json>",
-    "Post media JSON array with id and optional altText",
+    "Post media JSON array with either id or public HTTPS url, plus optional altText",
   )
   .option(
     "--media-ids <ids>",
@@ -1168,25 +1168,52 @@ const mediaCommand = program
 
 mediaCommand
   .command("upload")
-  .description("Upload one or more local media files")
-  .argument("<paths...>", "Image or video file paths")
+  .description(
+    "Upload local media files or securely import a public HTTPS media URL",
+  )
+  .argument("[paths...]", "Image or video file paths")
+  .option(
+    "--url <url>",
+    "Public HTTPS image/video URL to import into post2all storage",
+  )
+  .option("--filename <name>", "Optional filename to use when importing --url")
   .option("--json", "Output JSON")
-  .action(async (paths: string[], options: { json?: boolean }) => {
-    try {
-      const client = await createClient(program.opts<RootOptions>());
-      const results = await Promise.all(
-        paths.map((path) => client.uploadMedia(path)),
-      );
-      const output = { media: results.map((result) => result.media) };
-      if (options.json) {
-        console.log(JSON.stringify(output, null, 2));
-        return;
+  .action(
+    async (
+      paths: string[],
+      options: { url?: string; filename?: string; json?: boolean },
+    ) => {
+      try {
+        const client = await createClient(program.opts<RootOptions>());
+        if (options.url && paths.length > 0) {
+          throw new Error("Use local paths or --url, not both");
+        }
+        if (options.filename && !options.url) {
+          throw new Error("--filename requires --url");
+        }
+        if (!options.url && paths.length === 0) {
+          throw new Error("Provide at least one local path or --url");
+        }
+
+        const media = options.url
+          ? [
+              (await client.uploadMediaFromUrl(options.url, options.filename))
+                .media,
+            ]
+          : (
+              await Promise.all(paths.map((path) => client.uploadMedia(path)))
+            ).map((result) => result.media);
+        const output = { media };
+        if (options.json) {
+          console.log(JSON.stringify(output, null, 2));
+          return;
+        }
+        printOutput(output.media);
+      } catch (error) {
+        handleError(error);
       }
-      printOutput(output.media);
-    } catch (error) {
-      handleError(error);
-    }
-  });
+    },
+  );
 
 postCommand
   .command("get")
@@ -1272,7 +1299,7 @@ postCommand
   )
   .option(
     "--media <json>",
-    "Replacement post media JSON array with id and optional altText",
+    "Replacement post media JSON array with either id or public HTTPS url, plus optional altText",
   )
   .option(
     "--media-ids <ids>",

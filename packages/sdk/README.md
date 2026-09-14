@@ -265,7 +265,32 @@ await client.createPost({
 });
 ```
 
-`mediaIds` remains accepted for compatibility when you only need to attach media IDs. New integrations should prefer `media`, especially when setting per-media alt text. Do not send both in one request.
+If your application already hosts stable public HTTPS media, you can skip uploading and attach the URL directly:
+
+```ts
+await client.createPost({
+  content: "Launch",
+  media: [
+    {
+      url: "https://cdn.example.com/launch.mp4",
+      altText: "Launch walkthrough",
+    },
+  ],
+  targets,
+  delivery: { mode: "scheduled", scheduledAt: "2026-10-20T09:00:00Z" },
+});
+```
+
+Direct URL media stays caller-managed and must remain publicly reachable until every scheduled publish/retry completes. If the URL is temporary or signed, securely ingest a managed copy first:
+
+```ts
+const { media } = await client.uploadMediaFromUrl(
+  "https://temporary.example.com/launch.mp4",
+  "launch.mp4",
+);
+```
+
+`mediaIds` remains accepted for compatibility when you only need to attach managed media IDs. New integrations should prefer `media`, which accepts either `{ id }` or `{ url }` entries and optional per-media alt text. Do not send both `media` and `mediaIds` in one request.
 
 ## API
 
@@ -289,6 +314,7 @@ await client.createPost({
 - `getPublishingOptions(accountIds)`
 - `getAccountPublishingOptions(accountId)` (compatibility)
 - `uploadMedia(path)`
+- `uploadMediaFromUrl(url, filename?)` — securely imports a public HTTPS URL into post2all-managed storage
 - `createMediaUpload(input)`
 - `confirmMediaUpload(mediaId)`
 - `createPost(input)`

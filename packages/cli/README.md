@@ -225,16 +225,32 @@ Draft, scheduled, failed, and partially failed posts can be updated while retain
 
 ## Main flags
 
-| Flag                   | Description                                                                         |
-| ---------------------- | ----------------------------------------------------------------------------------- |
-| `--targets <json>`     | `PostTarget[]` containing `platform`, `accountId`, and platform-specific `settings` |
-| `--delivery <mode>`    | `draft`, `now`, or `scheduled`                                                      |
-| `--scheduled-at <iso>` | Required for scheduled delivery; must include `Z` or an explicit offset             |
-| `--media <json>`       | Preferred media array with `id` and optional per-item `altText`                     |
-| `--media-ids <ids>`    | Deprecated compatibility input for comma-separated IDs from `media upload`          |
-| `--json`               | Return machine-readable JSON                                                        |
+| Flag                   | Description                                                                                     |
+| ---------------------- | ----------------------------------------------------------------------------------------------- |
+| `--targets <json>`     | `PostTarget[]` containing `platform`, `accountId`, and platform-specific `settings`             |
+| `--delivery <mode>`    | `draft`, `now`, or `scheduled`                                                                  |
+| `--scheduled-at <iso>` | Required for scheduled delivery; must include `Z` or an explicit offset                         |
+| `--media <json>`       | Preferred media array with managed `id` or public HTTPS `url`, plus optional per-item `altText` |
+| `--media-ids <ids>`    | Deprecated compatibility input for comma-separated IDs from `media upload`                      |
+| `--json`               | Return machine-readable JSON                                                                    |
 
-`--status` remains as a deprecated alias for `draft`, `scheduled`, and `publish_now`; new integrations should use `--delivery`. Do not send `--media` and `--media-ids` together.
+`--status` remains as a deprecated alias for `draft`, `scheduled`, and `publish_now`; new integrations should use `--delivery`. Direct `url` media remains caller-managed and must stay reachable until publishing/retries complete. Do not send `--media` and `--media-ids` together.
+
+Import a temporary/public URL into post2all-managed storage when you want post2all to retain its own copy:
+
+```bash
+post2all media upload \
+  --url "https://temporary.example.com/video.mp4" \
+  --filename video.mp4
+```
+
+For stable media that you already host, no import is required:
+
+```bash
+post2all post create \
+  --media '[{"url":"https://cdn.example.com/video.mp4","altText":"Product demo"}]' \
+  --delivery draft
+```
 
 ## Documentation
 

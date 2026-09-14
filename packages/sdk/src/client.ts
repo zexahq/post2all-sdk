@@ -64,6 +64,10 @@ import {
   type CreateMediaUploadResponse,
   createMediaUploadResponseSchema,
   createMediaUploadInputSchema,
+  type UploadMediaFromUrlInput,
+  type UploadMediaFromUrlResponse,
+  uploadMediaFromUrlInputSchema,
+  uploadMediaFromUrlResponseSchema,
   createPostInputSchema,
   listPostsInputSchema,
   accountConnectInputSchema,
@@ -484,6 +488,22 @@ export class Post2allClient {
       { method: "POST" },
     );
     return this.parseJson(response, confirmMediaUploadResponseSchema);
+  }
+
+  public async uploadMediaFromUrl(
+    url: string,
+    filename?: string,
+  ): Promise<UploadMediaFromUrlResponse> {
+    const input: UploadMediaFromUrlInput = uploadMediaFromUrlInputSchema.parse({
+      url,
+      ...(filename ? { filename } : {}),
+    });
+    const response = await this.request("/media/uploads/from-url", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    return this.parseJson(response, uploadMediaFromUrlResponseSchema);
   }
 
   public async uploadMedia(path: string): Promise<ConfirmMediaUploadResponse> {

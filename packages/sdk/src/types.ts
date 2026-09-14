@@ -243,12 +243,29 @@ export const deliverySchema = z.discriminatedUnion("mode", [
     .strict(),
 ]);
 
-export const postMediaInputSchema = z
-  .object({
-    id: z.string().min(1),
-    altText: z.string().optional(),
-  })
-  .strict();
+const publicHttpsMediaUrlSchema = z
+  .string()
+  .url()
+  .refine((value) => new URL(value).protocol === "https:", {
+    message: "Media URLs must use HTTPS",
+  });
+
+export const postMediaInputSchema = z.union([
+  z
+    .object({
+      id: z.string().min(1),
+      url: z.never().optional(),
+      altText: z.string().optional(),
+    })
+    .strict(),
+  z
+    .object({
+      id: z.never().optional(),
+      url: publicHttpsMediaUrlSchema,
+      altText: z.string().optional(),
+    })
+    .strict(),
+]);
 
 function addPostContentIssues(
   value: {
@@ -364,6 +381,13 @@ export const createMediaUploadInputSchema = z
       .string()
       .regex(/^(image|video)\/[a-zA-Z0-9.+-]+$/, "Must be image/* or video/*"),
     fileSize: z.number().int().positive(),
+  })
+  .strict();
+
+export const uploadMediaFromUrlInputSchema = z
+  .object({
+    url: publicHttpsMediaUrlSchema,
+    filename: z.string().min(1).max(255).optional(),
   })
   .strict();
 
@@ -1051,6 +1075,16 @@ export const confirmMediaUploadResponseSchema = z.object({
   }),
 });
 
+export const uploadMediaFromUrlResponseSchema = z.object({
+  media: z.object({
+    id: z.string(),
+    source: z.literal("managed"),
+    type: z.enum(["image", "video"]),
+    sizeBytes: z.number(),
+    publicUrl: z.string().url(),
+  }),
+});
+
 // ─── Public types ────────────────────────────────────────────────────────────
 
 export type PostType = z.infer<typeof postTypeSchema>;
@@ -1140,6 +1174,9 @@ export type CreateMediaUploadResponse = z.infer<
 export type ConfirmMediaUploadResponse = z.infer<
   typeof confirmMediaUploadResponseSchema
 >;
+export type UploadMediaFromUrlResponse = z.infer<
+  typeof uploadMediaFromUrlResponseSchema
+>;
 
 export type CreatePostInput = z.input<typeof createPostInputSchema>;
 export type ConnectAccountInput = {
@@ -1160,6 +1197,9 @@ export type AccountAnalyticsPostsInput = z.input<
 export type PostAnalyticsInput = z.input<typeof postAnalyticsInputSchema>;
 export type CreateMediaUploadInput = z.input<
   typeof createMediaUploadInputSchema
+>;
+export type UploadMediaFromUrlInput = z.input<
+  typeof uploadMediaFromUrlInputSchema
 >;
 
 export type ApiValidationIssue = {

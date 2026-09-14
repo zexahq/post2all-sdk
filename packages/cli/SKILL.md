@@ -140,7 +140,7 @@ post2all post create \
   --json
 ```
 
-Attach image and/or video media IDs as needed. Do not pass local paths directly to post creation. Mixed media only when platform `allowMixedMedia` is true. When `publishing_schema`/`constraints` exposes `capability.media.altText`, set optional `altText` on each media item and obey its `mediaTypes` and `maxLength`. X intentionally does not expose media alt text. `--media-ids` remains a compatibility input for ID-only media; do not combine it with `--media`.
+Attach image and/or video media with either a post2all-managed `id` or a caller-managed public HTTPS `url`. Do not pass local paths directly to post creation. Direct URLs must remain publicly reachable until all scheduled publications/retries complete. Use `post2all media upload --url <https-url>` first when a temporary/signed URL should be securely ingested into post2all-managed storage. Mixed media only when platform `allowMixedMedia` is true. When `publishing_schema`/`constraints` exposes `capability.media.altText`, set optional `altText` on each media item and obey its `mediaTypes` and `maxLength`. X intentionally does not expose media alt text. `--media-ids` remains a compatibility input for ID-only media; do not combine it with `--media`.
 
 ## Platform settings
 

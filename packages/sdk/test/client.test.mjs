@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { Post2allClient } from "../dist/index.js";
+import { Post2allClient, postMediaInputSchema } from "../dist/index.js";
 
 function accountListResponse() {
   return Response.json({ accounts: [] });
@@ -469,4 +469,102 @@ test("post retry sends only the optional schedule time", async () => {
     scheduledAt: "2026-08-31T12:00:00.000Z",
   });
   assert.equal(result.retry.failedTargetCount, 1);
+});
+
+test("post creation accepts caller-hosted HTTPS media URLs", async () => {
+  let body;
+  const client = new Post2allClient({
+    apiKey: "amp_test",
+    baseUrl: "https://example.test/api/v1",
+    fetchImplementation: async (_url, init) => {
+      body = JSON.parse(String(init?.body));
+      return Response.json({
+        post: {
+          id: "post_1",
+          profileId: null,
+          content: "Launch",
+          status: "draft",
+          scheduledAt: null,
+          createdAt: new Date().toISOString(),
+          mediaCount: 1,
+          targetCount: 0,
+          targets: [],
+        },
+      });
+    },
+  });
+
+  await client.createPost({
+    content: "Launch",
+    media: [
+      { url: "https://cdn.example.test/launch.jpg", altText: "Launch image" },
+    ],
+    targets: [],
+    delivery: { mode: "draft" },
+  });
+
+  assert.deepEqual(body.media, [
+    { url: "https://cdn.example.test/launch.jpg", altText: "Launch image" },
+  ]);
+});
+
+test("post media input requires exactly one of id or url", () => {
+  assert.equal(
+    postMediaInputSchema.safeParse({ id: "media_123" }).success,
+    true,
+  );
+  assert.equal(
+    postMediaInputSchema.safeParse({
+      url: "https://cdn.example.test/image.jpg",
+    }).success,
+    true,
+  );
+  assert.equal(
+    postMediaInputSchema.safeParse({
+      id: "media_123",
+      url: "https://cdn.example.test/image.jpg",
+    }).success,
+    false,
+  );
+  assert.equal(postMediaInputSchema.safeParse({}).success, false);
+});
+
+test("uploadMediaFromUrl imports a remote file into managed post2all storage", async () => {
+  let requestedUrl;
+  let body;
+  const client = new Post2allClient({
+    apiKey: "amp_test",
+    baseUrl: "https://example.test/api/v1",
+    fetchImplementation: async (url, init) => {
+      requestedUrl = String(url);
+      body = JSON.parse(String(init?.body));
+      return Response.json(
+        {
+          media: {
+            id: "media_1",
+            source: "managed",
+            type: "image",
+            sizeBytes: 123,
+            publicUrl: "https://media.example.test/media_1.jpg",
+          },
+        },
+        { status: 201 },
+      );
+    },
+  });
+
+  const response = await client.uploadMediaFromUrl(
+    "https://temporary.example.test/file.jpg",
+    "launch.jpg",
+  );
+
+  assert.equal(
+    requestedUrl,
+    "https://example.test/api/v1/media/uploads/from-url",
+  );
+  assert.deepEqual(body, {
+    url: "https://temporary.example.test/file.jpg",
+    filename: "launch.jpg",
+  });
+  assert.equal(response.media.id, "media_1");
 });
