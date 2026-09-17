@@ -43,6 +43,12 @@ const { post } = await client.createPost({
 });
 ```
 
+For production creates, pass a stable idempotency key so a timeout can be retried without creating a second post:
+
+```ts
+await client.createPost(input, { idempotencyKey: "customer-job-123" });
+```
+
 `targets` is a discriminated union. Once `platform` is selected, TypeScript and Zod only accept settings supported by that platform.
 
 Platform IDs, settings fields, fixed enums, limits, static account-connection metadata, the `publishedDeletion.available` capability, and sanitized analytics schema metadata are generated from the private monorepo's public contract. Do not edit the generated contract file in this repository; the release synchronization job regenerates it.
@@ -85,7 +91,7 @@ post2all rejects a reconnect if the newly authorized provider identity does not 
 
 ### Profiles for clients and SaaS tenants
 
-Business and Agency workspaces can keep clients, brands, or customers in optional Profiles. Business supports up to 2 profiles; Agency supports up to 10 profiles.
+Business, Agency, and credit-based workspaces can keep clients, brands, or customers in optional Profiles. Business supports up to 2 profiles, Agency up to 10, and credit workspaces up to 10,000. Profiles are organization/filtering contexts, not separate API credentials or tenant authorization boundaries.
 
 ```ts
 const { profile } = await client.createProfile({
@@ -183,6 +189,44 @@ console.log(options.accounts[0]?.boards);
 `capability` is the authoritative, account-specific constraint set. Read it before composing or validating a post instead of hard-coding platform limits. For example, an X account's `capability.text.maxLength` reflects whether that account is Free, Basic, Premium, or Premium+.
 
 Do not send a fixed post type. Composition is inferred from attached media. Mixed image/video is allowed only when platform `media.allowMixedMedia` is true. When `capability.media.altText` is present, each attached media item may include its own `altText`; use the returned media types and maximum length. X intentionally does not expose media alt text.
+
+## Credit billing and publishing capacity
+
+Organizations manually onboarded onto credit billing can inspect their prepaid access and selected-account rolling publishing capacity:
+
+```ts
+const billing = await client.getBilling();
+const limits = await client.getPublishingLimits(["acc_instagram_123"]);
+```
+
+`getBilling()` is organization-wide. `getPublishingLimits()` preserves `forProfile()` scope and returns an advisory snapshot; publish-time enforcement remains authoritative and automatically defers targets that have exhausted capacity.
+
+## Credit-organization webhooks
+
+Credit workspace owners and admins manage webhook endpoints in the post2all dashboard. The SDK verifies incoming deliveries:
+
+```ts
+import { verifyWebhookSignature } from "@post2all/sdk";
+
+const valid = verifyWebhookSignature({
+  rawBody,
+  secret: process.env.POST2ALL_WEBHOOK_SECRET!,
+  eventId: headers.get("x-post2all-event-id") ?? "",
+  timestamp: headers.get("x-post2all-timestamp") ?? "",
+  signature: headers.get("x-post2all-signature") ?? "",
+});
+```
+
+The dashboard shows the signing secret only once after endpoint creation. Deliveries are at least once; store the secret server-side and deduplicate on the stable event ID.
+
+Use `onResponse` to collect request IDs and request-quota metadata without changing any method's return shape:
+
+```ts
+const client = new Post2allClient({
+  apiKey: process.env.POST2ALL_API_KEY!,
+  onResponse: ({ requestId, rateLimit }) => console.log(requestId, rateLimit),
+});
+```
 
 ## Analytics
 
@@ -313,11 +357,13 @@ const { media } = await client.uploadMediaFromUrl(
 - `getPublishingSchema(accountIds)`
 - `getPublishingOptions(accountIds)`
 - `getAccountPublishingOptions(accountId)` (compatibility)
+- `getBilling()` (credit-based organizations only)
+- `getPublishingLimits(accountIds)` (credit-based organizations only)
 - `uploadMedia(path)`
 - `uploadMediaFromUrl(url, filename?)` — securely imports a public HTTPS URL into post2all-managed storage
 - `createMediaUpload(input)`
 - `confirmMediaUpload(mediaId)`
-- `createPost(input)`
+- `createPost(input, options?)`
 - `listPosts(input?)`
 - `getPost(postId)`
 - `getPostAnalytics(postId, input?)`

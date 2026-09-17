@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
+import { createHmac } from "node:crypto";
 import test from "node:test";
 
-import { Post2allClient, postMediaInputSchema } from "../dist/index.js";
+import {
+  Post2allClient,
+  postMediaInputSchema,
+  verifyWebhookSignature,
+} from "../dist/index.js";
 
 function accountListResponse() {
   return Response.json({ accounts: [] });
@@ -42,6 +47,40 @@ test("direct SDK usage does not claim to be the CLI", async () => {
   assert.equal(headers?.get("x-post2all-client-version"), null);
 });
 
+test("response metadata exposes request, rate-limit, retry, and replay headers", async () => {
+  let metadata;
+  const client = new Post2allClient({
+    apiKey: "amp_test",
+    baseUrl: "https://example.test/api/v1",
+    onResponse: (value) => {
+      metadata = value;
+    },
+    fetchImplementation: async () =>
+      Response.json(
+        { accounts: [] },
+        {
+          headers: {
+            "X-Request-Id": "req_123",
+            "RateLimit-Limit": "100000",
+            "RateLimit-Remaining": "99999",
+            "RateLimit-Reset": "1800000000",
+            "Retry-After": "2",
+            "Idempotency-Replayed": "true",
+          },
+        },
+      ),
+  });
+
+  await client.listAccounts();
+
+  assert.equal(metadata?.requestId, "req_123");
+  assert.equal(metadata?.rateLimit?.limit, 100000);
+  assert.equal(metadata?.rateLimit?.remaining, 99999);
+  assert.equal(metadata?.rateLimit?.resetAt?.getTime(), 1_800_000_000_000);
+  assert.equal(metadata?.retryAfterSeconds, 2);
+  assert.equal(metadata?.idempotencyReplayed, true);
+});
+
 test("forProfile scopes account and post requests with x-profile-id", async () => {
   const calls = [];
   const client = new Post2allClient({
@@ -57,6 +96,61 @@ test("forProfile scopes account and post requests with x-profile-id", async () =
 
   assert.equal(calls[0]?.headers.get("x-profile-id"), "profile-1");
   assert.equal(calls[0]?.headers.get("x-post2all-profile-id"), null);
+});
+
+test("credit billing is organization-wide and publishing limits preserve profile scope", async () => {
+  const calls = [];
+  const client = new Post2allClient({
+    apiKey: "amp_test",
+    baseUrl: "https://example.test/api/v1",
+    fetchImplementation: async (url, init) => {
+      const path = new URL(String(url)).pathname;
+      calls.push({
+        path,
+        method: init?.method ?? "GET",
+        headers: new Headers(init?.headers),
+        body: init?.body ? JSON.parse(String(init.body)) : undefined,
+      });
+      if (path.endsWith("/billing")) {
+        return Response.json({
+          organizationType: "credit",
+          currency: "USD",
+          status: "active",
+          hasAccess: true,
+          balanceMicros: 10_000_000,
+          meteredThrough: "2026-09-16T00:00:00.000Z",
+          connectedAccountCount: 1,
+          marginalMonthlyPriceMicros: 3_000_000,
+          projectedMonthlyMicros: 3_000_000,
+          projectedDailyMicros: 100_000,
+        });
+      }
+      return Response.json({
+        organizationType: "credit",
+        enforcement: "defer",
+        snapshotAt: "2026-09-17T12:00:00.000Z",
+        accounts: [
+          {
+            accountId: "account-1",
+            platform: "instagram",
+            rollingHour: { limit: 25, used: 2, remaining: 23 },
+            rolling24Hours: { limit: 100, used: 10, remaining: 90 },
+            availableNow: true,
+            nextAvailableAt: null,
+          },
+        ],
+      });
+    },
+  }).forProfile("profile-1");
+
+  const billing = await client.getBilling();
+  const limits = await client.getPublishingLimits(["account-1"]);
+
+  assert.equal(billing.currency, "USD");
+  assert.equal(limits.accounts[0]?.rollingHour.remaining, 23);
+  assert.equal(calls[0]?.headers.get("x-profile-id"), null);
+  assert.equal(calls[1]?.headers.get("x-profile-id"), "profile-1");
+  assert.deepEqual(calls[1]?.body, { accountIds: ["account-1"] });
 });
 
 test("profile lifecycle methods use the public profile endpoints without profile scoping", async () => {
@@ -473,11 +567,13 @@ test("post retry sends only the optional schedule time", async () => {
 
 test("post creation accepts caller-hosted HTTPS media URLs", async () => {
   let body;
+  let headers;
   const client = new Post2allClient({
     apiKey: "amp_test",
     baseUrl: "https://example.test/api/v1",
     fetchImplementation: async (_url, init) => {
       body = JSON.parse(String(init?.body));
+      headers = new Headers(init?.headers);
       return Response.json({
         post: {
           id: "post_1",
@@ -494,18 +590,46 @@ test("post creation accepts caller-hosted HTTPS media URLs", async () => {
     },
   });
 
-  await client.createPost({
-    content: "Launch",
-    media: [
-      { url: "https://cdn.example.test/launch.jpg", altText: "Launch image" },
-    ],
-    targets: [],
-    delivery: { mode: "draft" },
-  });
+  await client.createPost(
+    {
+      content: "Launch",
+      media: [
+        {
+          url: "https://cdn.example.test/launch.jpg",
+          altText: "Launch image",
+        },
+      ],
+      targets: [],
+      delivery: { mode: "draft" },
+    },
+    { idempotencyKey: "customer-post-123", requestId: "request-123" },
+  );
 
   assert.deepEqual(body.media, [
     { url: "https://cdn.example.test/launch.jpg", altText: "Launch image" },
   ]);
+  assert.equal(headers?.get("idempotency-key"), "customer-post-123");
+  assert.equal(headers?.get("x-request-id"), "request-123");
+});
+
+test("webhook signatures verify the raw body and reject tampering", () => {
+  const rawBody = '{"id":"evt_123"}';
+  const timestamp = "1789603200";
+  const secret = "whsec_test";
+  const signature = `v1=${createHmac("sha256", secret)
+    .update(`evt_123.${timestamp}.${rawBody}`)
+    .digest("hex")}`;
+  const input = {
+    rawBody,
+    secret,
+    eventId: "evt_123",
+    timestamp,
+    signature,
+    now: new Date(1_789_603_200_000),
+  };
+
+  assert.equal(verifyWebhookSignature(input), true);
+  assert.equal(verifyWebhookSignature({ ...input, rawBody: "{}" }), false);
 });
 
 test("post media input requires exactly one of id or url", () => {

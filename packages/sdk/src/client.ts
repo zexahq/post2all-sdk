@@ -3,7 +3,7 @@ import { basename, extname } from "node:path";
 
 import { z } from "zod";
 
-import { Post2allApiError } from "./errors.js";
+import { Post2allApiError, type Post2allResponseMetadata } from "./errors.js";
 import {
   type AccountConnectionResponse,
   accountConnectionResponseSchema,
@@ -38,6 +38,11 @@ import {
   publishingSchemaResponseSchema,
   type PublishingOptionsResponse,
   publishingOptionsResponseSchema,
+  type CreditBillingResponse,
+  creditBillingResponseSchema,
+  type PublishingLimitsResponse,
+  publishingLimitsRequestSchema,
+  publishingLimitsResponseSchema,
   type ListPostsInput,
   type ListPostsResponse,
   listPostsResponseSchema,
@@ -138,7 +143,41 @@ export type Post2allClientOptions = {
   fetchImplementation?: typeof fetch;
   clientInfo?: Post2allClientInfo;
   profileId?: string;
+  onResponse?: (metadata: Post2allResponseMetadata) => void;
 };
+
+export type Post2allRequestOptions = {
+  idempotencyKey?: string;
+  requestId?: string;
+};
+
+function optionalNumber(value: string | null): number | undefined {
+  if (value === null || value.trim() === "") return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function responseMetadata(response: Response): Post2allResponseMetadata {
+  const limit = optionalNumber(response.headers.get("ratelimit-limit"));
+  const remaining = optionalNumber(response.headers.get("ratelimit-remaining"));
+  const reset = optionalNumber(response.headers.get("ratelimit-reset"));
+  const retryAfterSeconds = optionalNumber(response.headers.get("retry-after"));
+  const hasRateLimit =
+    limit !== undefined || remaining !== undefined || reset !== undefined;
+  return {
+    requestId: response.headers.get("x-request-id") ?? undefined,
+    idempotencyReplayed:
+      response.headers.get("idempotency-replayed") === "true",
+    retryAfterSeconds,
+    rateLimit: hasRateLimit
+      ? {
+          limit,
+          remaining,
+          resetAt: reset === undefined ? undefined : new Date(reset * 1000),
+        }
+      : undefined,
+  };
+}
 
 export class Post2allClient {
   private readonly apiKey: string;
@@ -146,6 +185,7 @@ export class Post2allClient {
   private readonly fetchImplementation: typeof fetch;
   private readonly clientInfo?: Post2allClientInfo;
   private readonly profileId?: string;
+  private readonly onResponse?: (metadata: Post2allResponseMetadata) => void;
 
   public constructor(options: Post2allClientOptions) {
     this.apiKey = options.apiKey;
@@ -153,6 +193,7 @@ export class Post2allClient {
     this.fetchImplementation = options.fetchImplementation ?? fetch;
     this.clientInfo = options.clientInfo;
     this.profileId = options.profileId;
+    this.onResponse = options.onResponse;
   }
 
   public forProfile(profileId: string): Post2allClient {
@@ -166,6 +207,7 @@ export class Post2allClient {
       fetchImplementation: this.fetchImplementation,
       clientInfo: this.clientInfo,
       profileId: parsedProfileId,
+      onResponse: this.onResponse,
     });
   }
 
@@ -456,12 +498,38 @@ export class Post2allClient {
     return this.parseJson(response, publishingOptionsResponseSchema);
   }
 
-  public async createPost(input: CreatePostInput): Promise<CreatePostResponse> {
+  public async getBilling(): Promise<CreditBillingResponse> {
+    const response = await this.request("/billing", undefined, false);
+    return this.parseJson(response, creditBillingResponseSchema);
+  }
+
+  public async getPublishingLimits(
+    accountIds: string[],
+  ): Promise<PublishingLimitsResponse> {
+    const input = publishingLimitsRequestSchema.parse({ accountIds });
+    const response = await this.request("/publishing-limits", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    return this.parseJson(response, publishingLimitsResponseSchema);
+  }
+
+  public async createPost(
+    input: CreatePostInput,
+    options: Post2allRequestOptions = {},
+  ): Promise<CreatePostResponse> {
     input = createPostInputSchema.parse(input);
 
     const response = await this.request("/posts", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.idempotencyKey
+          ? { "Idempotency-Key": options.idempotencyKey }
+          : {}),
+        ...(options.requestId ? { "X-Request-Id": options.requestId } : {}),
+      },
       body: JSON.stringify(input),
     });
 
@@ -724,8 +792,11 @@ export class Post2allClient {
       },
     });
 
+    const metadata = responseMetadata(response);
+    this.onResponse?.(metadata);
+
     if (!response.ok) {
-      throw await this.createApiError(response);
+      throw await this.createApiError(response, metadata);
     }
 
     return response;
@@ -743,6 +814,7 @@ export class Post2allClient {
       throw new Post2allApiError("API returned invalid JSON", {
         status: response.status,
         code: "INVALID_RESPONSE",
+        metadata: responseMetadata(response),
       });
     }
 
@@ -752,13 +824,17 @@ export class Post2allClient {
         status: response.status,
         code: "INVALID_RESPONSE",
         details: parsed.error.flatten(),
+        metadata: responseMetadata(response),
       });
     }
 
     return parsed.data;
   }
 
-  private async createApiError(response: Response): Promise<Post2allApiError> {
+  private async createApiError(
+    response: Response,
+    metadata: Post2allResponseMetadata,
+  ): Promise<Post2allApiError> {
     let payload: ApiErrorBody | undefined;
 
     try {
@@ -776,6 +852,7 @@ export class Post2allClient {
       status: response.status,
       code,
       details: payload,
+      metadata,
     });
   }
 }

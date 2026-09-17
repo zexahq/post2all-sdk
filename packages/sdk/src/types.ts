@@ -906,6 +906,85 @@ export const publishingSchemaResponseSchema = z.object({
   ),
 });
 
+export const creditBillingResponseSchema = z.object({
+  organizationType: z.literal("credit"),
+  currency: z.literal("USD"),
+  status: z.enum(["active", "suspended", "disabled"]),
+  hasAccess: z.boolean(),
+  balanceMicros: z.number().int(),
+  meteredThrough: z.string().nullable(),
+  connectedAccountCount: z.number().int().nonnegative(),
+  marginalMonthlyPriceMicros: z.number().int().nonnegative(),
+  projectedMonthlyMicros: z.number().int().nonnegative(),
+  projectedDailyMicros: z.number().int().nonnegative(),
+});
+
+export const publishingLimitsRequestSchema = z
+  .object({ accountIds: z.array(z.string().min(1)).min(1).max(50) })
+  .strict()
+  .refine(
+    (value) => new Set(value.accountIds).size === value.accountIds.length,
+    {
+      path: ["accountIds"],
+      message: "accountIds must not contain duplicates",
+    },
+  );
+
+const publishingLimitWindowSchema = z.object({
+  limit: z.number().int().nonnegative(),
+  used: z.number().int().nonnegative(),
+  remaining: z.number().int().nonnegative(),
+});
+
+export const publishingLimitsResponseSchema = z.object({
+  organizationType: z.literal("credit"),
+  enforcement: z.literal("defer"),
+  snapshotAt: z.string(),
+  accounts: z.array(
+    z.object({
+      accountId: z.string(),
+      platform: platformSchema,
+      rollingHour: publishingLimitWindowSchema,
+      rolling24Hours: publishingLimitWindowSchema,
+      availableNow: z.boolean(),
+      nextAvailableAt: z.string().nullable(),
+    }),
+  ),
+});
+
+// Credit-organization webhook delivery contracts.
+export const WEBHOOK_EVENT_TYPES = [
+  "account.connected",
+  "account.reconnect_required",
+  "account.disconnected",
+  "post.created",
+  "post.scheduled",
+  "post.target.published",
+  "post.target.uploaded",
+  "post.target.failed",
+  "post.target.deferred",
+  "post.published",
+  "post.completed",
+  "post.partially_failed",
+  "post.failed",
+  "post.cancelled",
+  "billing.balance_low",
+  "billing.suspended",
+  "billing.restored",
+] as const;
+
+export const webhookEventTypeSchema = z.enum(WEBHOOK_EVENT_TYPES);
+
+export const webhookEventEnvelopeSchema = z.object({
+  id: z.string(),
+  type: webhookEventTypeSchema.or(z.literal("webhook.test")),
+  apiVersion: z.literal("2026-09-01"),
+  createdAt: z.string(),
+  organizationId: z.string(),
+  profileId: z.string().nullable(),
+  data: z.record(z.string(), z.unknown()),
+});
+
 // ─── Post responses ──────────────────────────────────────────────────────────
 
 export const postMediaSchema = z
@@ -1153,6 +1232,15 @@ export type PublishingOptionsResponse = z.infer<
 export type PublishingSchemaResponse = z.infer<
   typeof publishingSchemaResponseSchema
 >;
+export type CreditBillingResponse = z.infer<typeof creditBillingResponseSchema>;
+export type PublishingLimitsRequest = z.infer<
+  typeof publishingLimitsRequestSchema
+>;
+export type PublishingLimitsResponse = z.infer<
+  typeof publishingLimitsResponseSchema
+>;
+export type WebhookEventType = z.infer<typeof webhookEventTypeSchema>;
+export type WebhookEventEnvelope = z.infer<typeof webhookEventEnvelopeSchema>;
 export type PostResponseTarget = z.infer<typeof postResponseTargetSchema>;
 export type ListAccountsResponse = z.infer<typeof listAccountsResponseSchema>;
 export type ListPostsResponse = z.infer<typeof listPostsResponseSchema>;
