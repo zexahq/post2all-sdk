@@ -7,6 +7,7 @@ import {
   postMediaInputSchema,
   postTargetsSchema,
   tiktokSettingsSchema,
+  twitterSettingsSchema,
   wircleSettingsSchema,
   youtubeSettingsSchema,
 } from "../dist/types.js";
@@ -51,10 +52,19 @@ test("generated settings enforce fixed enum values and field limits", () => {
     youtubeSettingsSchema.parse({ privacyStatus: "friends" }),
   );
   assert.throws(() => youtubeSettingsSchema.parse({ title: "x".repeat(101) }));
+  assert.equal(
+    youtubeSettingsSchema.parse({ license: "creativeCommon" }).license,
+    "creativeCommon",
+  );
+  assert.equal(
+    twitterSettingsSchema.parse({ replySettings: "verified" }).replySettings,
+    "verified",
+  );
+  assert.throws(() => twitterSettingsSchema.parse({ replySettings: "nobody" }));
 });
 
 test("generated contract exposes only public published deletion", () => {
-  assert.equal(PUBLIC_PUBLISHING_CONTRACT.version, 3);
+  assert.equal(PUBLIC_PUBLISHING_CONTRACT.version, 4);
   assert.equal(
     PUBLIC_PUBLISHING_CONTRACT.platforms.twitter.publishedDeletion.available,
     true,
