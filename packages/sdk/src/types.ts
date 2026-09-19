@@ -917,6 +917,36 @@ export const creditBillingResponseSchema = z.object({
   marginalMonthlyPriceMicros: z.number().int().nonnegative(),
   projectedMonthlyMicros: z.number().int().nonnegative(),
   projectedDailyMicros: z.number().int().nonnegative(),
+  xUsage: z.object({
+    periodStart: z.string(),
+    periodEnd: z.string(),
+    spendMicros: z.number().int().nonnegative(),
+    spendAlertMicros: z.number().int().positive().nullable(),
+    operations: z.object({
+      contentCreate: z.object({
+        count: z.number().int().nonnegative(),
+        spendMicros: z.number().int().nonnegative(),
+      }),
+      contentCreateWithUrl: z.object({
+        count: z.number().int().nonnegative(),
+        spendMicros: z.number().int().nonnegative(),
+      }),
+    }),
+  }),
+});
+
+export const xApiPricingResponseSchema = z.object({
+  currency: z.literal("USD"),
+  markupPercent: z.literal(0),
+  source: z.url(),
+  lastVerified: z.string(),
+  operations: z.array(
+    z.object({
+      operation: z.enum(["content_create", "content_create_with_url"]),
+      displayName: z.string(),
+      priceMicros: z.number().int().positive(),
+    }),
+  ),
 });
 
 export const publishingLimitsRequestSchema = z
@@ -969,6 +999,8 @@ export const WEBHOOK_EVENT_TYPES = [
   "post.failed",
   "post.cancelled",
   "billing.balance_low",
+  "billing.x_spend_80",
+  "billing.x_spend_100",
   "billing.suspended",
   "billing.restored",
 ] as const;
@@ -1233,6 +1265,7 @@ export type PublishingSchemaResponse = z.infer<
   typeof publishingSchemaResponseSchema
 >;
 export type CreditBillingResponse = z.infer<typeof creditBillingResponseSchema>;
+export type XApiPricingResponse = z.infer<typeof xApiPricingResponseSchema>;
 export type PublishingLimitsRequest = z.infer<
   typeof publishingLimitsRequestSchema
 >;

@@ -123,6 +123,22 @@ test("credit billing is organization-wide and publishing limits preserve profile
           marginalMonthlyPriceMicros: 3_000_000,
           projectedMonthlyMicros: 3_000_000,
           projectedDailyMicros: 100_000,
+          xUsage: {
+            periodStart: "2026-09-01T00:00:00.000Z",
+            periodEnd: "2026-10-01T00:00:00.000Z",
+            spendMicros: 0,
+            spendAlertMicros: null,
+            operations: {
+              contentCreate: {
+                count: 0,
+                spendMicros: 0,
+              },
+              contentCreateWithUrl: {
+                count: 0,
+                spendMicros: 0,
+              },
+            },
+          },
         });
       }
       return Response.json({
@@ -151,6 +167,36 @@ test("credit billing is organization-wide and publishing limits preserve profile
   assert.equal(calls[0]?.headers.get("x-profile-id"), null);
   assert.equal(calls[1]?.headers.get("x-profile-id"), "profile-1");
   assert.deepEqual(calls[1]?.body, { accountIds: ["account-1"] });
+});
+
+test("credit X pricing exposes exact pass-through rates", async () => {
+  const client = new Post2allClient({
+    apiKey: "amp_test",
+    baseUrl: "https://example.test/api/v1",
+    fetchImplementation: async () =>
+      Response.json({
+        currency: "USD",
+        markupPercent: 0,
+        source: "https://docs.x.com/x-api/getting-started/pricing",
+        lastVerified: "2026-09-19",
+        operations: [
+          {
+            operation: "content_create",
+            displayName: "X API: Post create",
+            priceMicros: 15_000,
+          },
+          {
+            operation: "content_create_with_url",
+            displayName: "X API: Post create with URL",
+            priceMicros: 200_000,
+          },
+        ],
+      }),
+  });
+
+  const pricing = await client.getXApiPricing();
+  assert.equal(pricing.markupPercent, 0);
+  assert.equal(pricing.operations[1]?.priceMicros, 200_000);
 });
 
 test("profile lifecycle methods use the public profile endpoints without profile scoping", async () => {

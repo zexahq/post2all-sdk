@@ -196,10 +196,11 @@ Organizations manually onboarded onto credit billing can inspect their prepaid a
 
 ```ts
 const billing = await client.getBilling();
+const xPricing = await client.getXApiPricing();
 const limits = await client.getPublishingLimits(["acc_instagram_123"]);
 ```
 
-`getBilling()` is organization-wide. `getPublishingLimits()` preserves `forProfile()` scope and returns an advisory snapshot; publish-time enforcement remains authoritative and automatically defers targets that have exhausted capacity.
+`getBilling()` is organization-wide and includes current-period X API counts and spend. `getXApiPricing()` returns the canonical zero-markup X rates: currently 15,000 micros per post without a URL and 200,000 micros per post containing a URL. `getPublishingLimits()` preserves `forProfile()` scope and returns an advisory snapshot; publish-time enforcement remains authoritative and automatically defers targets that have exhausted capacity.
 
 ## Credit-organization webhooks
 
@@ -358,6 +359,7 @@ const { media } = await client.uploadMediaFromUrl(
 - `getPublishingOptions(accountIds)`
 - `getAccountPublishingOptions(accountId)` (compatibility)
 - `getBilling()` (credit-based organizations only)
+- `getXApiPricing()` (credit-based organizations only)
 - `getPublishingLimits(accountIds)` (credit-based organizations only)
 - `uploadMedia(path)`
 - `uploadMediaFromUrl(url, filename?)` — securely imports a public HTTPS URL into post2all-managed storage

@@ -40,6 +40,8 @@ import {
   publishingOptionsResponseSchema,
   type CreditBillingResponse,
   creditBillingResponseSchema,
+  type XApiPricingResponse,
+  xApiPricingResponseSchema,
   type PublishingLimitsResponse,
   publishingLimitsRequestSchema,
   publishingLimitsResponseSchema,
@@ -501,6 +503,11 @@ export class Post2allClient {
   public async getBilling(): Promise<CreditBillingResponse> {
     const response = await this.request("/billing", undefined, false);
     return this.parseJson(response, creditBillingResponseSchema);
+  }
+
+  public async getXApiPricing(): Promise<XApiPricingResponse> {
+    const response = await this.request("/billing/x-pricing", undefined, false);
+    return this.parseJson(response, xApiPricingResponseSchema);
   }
 
   public async getPublishingLimits(
