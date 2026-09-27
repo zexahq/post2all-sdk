@@ -708,7 +708,7 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
         },
       },
       publishedDeletion: {
-        available: false,
+        available: true,
       },
     },
     dribbble: {

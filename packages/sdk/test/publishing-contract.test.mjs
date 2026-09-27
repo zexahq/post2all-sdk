@@ -71,7 +71,7 @@ test("generated contract exposes only public published deletion", () => {
   );
   assert.equal(
     PUBLIC_PUBLISHING_CONTRACT.platforms.threads.publishedDeletion.available,
-    false,
+    true,
   );
   assert.equal(
     PUBLIC_PUBLISHING_CONTRACT.platforms.youtube.publishedDeletion.available,
