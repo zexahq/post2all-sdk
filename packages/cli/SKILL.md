@@ -224,6 +224,6 @@ Valid post statuses are `draft`, `scheduled`, `publishing`, `published`, `comple
 - `UNSUPPORTED_MEDIA`: verify file type, size, mixed-media rules, and selected platforms.
 - `POST_NOT_FOUND`: refresh the post list.
 - `PLAN_UPGRADE_REQUIRED` / `FORBIDDEN`: explain the account or plan restriction rather than retrying.
-- `RATE_LIMITED`: wait before retrying.
+- `RATE_LIMITED`: wait at least `Retry-After` seconds before retrying. The limit is a rolling 24-hour request quota (1,000 for standard keys), so never poll on a short timer, such as listing scheduled posts every few minutes; read `RateLimit-Remaining` and check state on demand instead. Reminders about scheduled posts belong in the user's own calendar or alarm, not in API polling.
 
 Use `--json` whenever output will be parsed or used by another command.

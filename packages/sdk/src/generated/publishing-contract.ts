@@ -355,9 +355,9 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
             valueSource: "free_text",
             enabled: true,
             composerVisible: false,
-            label: "Comment Hook",
+            label: "Auto DM and comment replies",
             description:
-              "Auto-reply to comments on this post or Reel: one private DM per comment plus an optional public reply.",
+              "Send one DM per comment with an optional public reply.",
             postTypes: ["image", "video"],
           },
           instagramCommentHookKeyword: {
