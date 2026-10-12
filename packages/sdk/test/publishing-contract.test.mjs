@@ -3,6 +3,9 @@ import test from "node:test";
 import { PUBLIC_PUBLISHING_CONTRACT } from "../dist/generated/publishing-contract.js";
 import {
   instagramSettingsSchema,
+  blueskySettingsSchema,
+  facebookSettingsSchema,
+  threadsSettingsSchema,
   platformSchema,
   postMediaInputSchema,
   postTargetsSchema,
@@ -30,7 +33,6 @@ test("generated Wircle contract exposes the public text and image capabilities",
   assert.equal(wircle.capability.text.maxLength, 4000);
   assert.equal(wircle.capability.media.maxImages, 4);
   assert.equal(wircle.capability.media.maxImageBytes, 10 * 1024 * 1024);
-  assert.deepEqual(wircle.capability.fields, {});
   assert.deepEqual(wircleSettingsSchema.parse({}), {});
   assert.throws(() =>
     wircleSettingsSchema.parse({ caption: "not a target setting" }),
@@ -166,4 +168,39 @@ test("generated schemas remain strict and retain dynamic enum validation", () =>
   assert.throws(() =>
     tiktokSettingsSchema.parse({ tiktokPrivacyLevel: "PRIVATE" }),
   );
+});
+
+test("public clients reject first comments on every privately rolled-out platform", () => {
+  for (const schema of [
+    twitterSettingsSchema,
+    instagramSettingsSchema,
+    blueskySettingsSchema,
+    wircleSettingsSchema,
+    facebookSettingsSchema,
+    threadsSettingsSchema,
+    youtubeSettingsSchema,
+  ]) {
+    assert.throws(() => schema.parse({ firstComment: "Admin only" }));
+    assert.throws(() => schema.parse({ firstCommentDelaySeconds: 0 }));
+  }
+  for (const platform of [
+    "twitter",
+    "instagram",
+    "bluesky",
+    "wircle",
+    "facebook",
+    "threads",
+    "youtube",
+  ]) {
+    assert.equal(
+      PUBLIC_PUBLISHING_CONTRACT.platforms[platform].capability.fields
+        .firstComment,
+      undefined,
+    );
+    assert.equal(
+      PUBLIC_PUBLISHING_CONTRACT.platforms[platform].capability.fields
+        .firstCommentDelaySeconds,
+      undefined,
+    );
+  }
 });

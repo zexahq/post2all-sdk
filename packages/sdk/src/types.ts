@@ -66,6 +66,8 @@ type GeneratedField = {
   maxCount?: number;
   maxTotalLength?: number;
   minValue?: number;
+  maxValue?: number;
+  integer?: boolean;
   options?: readonly { value: string; label: string }[];
 };
 
@@ -82,6 +84,9 @@ function buildGeneratedFieldSchema(
       let numberSchema = z.number().finite();
       if (config.minValue !== undefined)
         numberSchema = numberSchema.min(config.minValue);
+      if (config.maxValue !== undefined)
+        numberSchema = numberSchema.max(config.maxValue);
+      if (config.integer) numberSchema = numberSchema.int();
       schema = numberSchema;
       break;
     }
@@ -137,7 +142,15 @@ function buildGeneratedSettingsSchema<P extends Platform>(
         ]),
       ),
     )
-    .strict() as z.ZodType<PlatformSettingsByPlatform[P]>;
+    .strict()
+    .superRefine((settings, ctx) => {
+      if (settings.firstCommentDelaySeconds && !settings.firstComment)
+        ctx.addIssue({
+          code: "custom",
+          path: ["firstCommentDelaySeconds"],
+          message: "Add a first comment before setting a delay",
+        });
+    }) as z.ZodType<PlatformSettingsByPlatform[P]>;
 }
 
 export const twitterSettingsSchema = buildGeneratedSettingsSchema("twitter");
@@ -901,6 +914,9 @@ export const publishingSchemaResponseSchema = z.object({
       platform: platformSchema,
       name: z.string(),
       capability: platformCapabilitySchema,
+      firstComment: z
+        .object({ available: z.boolean(), reason: z.string().nullable() })
+        .optional(),
       discoveries: z.array(z.enum(["destinations", "boards", "creatorInfo"])),
     }),
   ),
@@ -1073,6 +1089,23 @@ export const postResponseTargetSchema = z
     platformPostUrl: z.string().nullable().optional(),
     providerStatus: z.string().nullable().optional(),
     providerFailReason: z.string().nullable().optional(),
+    firstComment: z
+      .object({
+        status: z.enum([
+          "pending",
+          "sending",
+          "sent",
+          "failed",
+          "cancelled",
+          "unknown",
+        ]),
+        dueAt: z.string().nullable(),
+        sentAt: z.string().nullable(),
+        platformCommentId: z.string().nullable(),
+        error: z.string().nullable(),
+      })
+      .nullable()
+      .optional(),
     error: z.string().nullable().optional(),
     publishedAt: z.string().nullable().optional(),
   })
