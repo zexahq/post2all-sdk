@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { PUBLIC_PUBLISHING_CONTRACT } from "../dist/generated/publishing-contract.js";
+import * as sdkTypes from "../dist/types.js";
 import {
   instagramSettingsSchema,
   blueskySettingsSchema,
@@ -202,5 +203,44 @@ test("public clients reject first comments on every privately rolled-out platfor
         .firstCommentDelaySeconds,
       undefined,
     );
+  }
+});
+
+function sampleFor(field) {
+  switch (field.type) {
+    case "boolean":
+      return { valid: true, wrong: "yes" };
+    case "number":
+      return { valid: Math.max(field.minValue ?? 0, 1), wrong: "1" };
+    case "tags":
+      return { valid: ["a", "b"], wrong: "a,b" };
+    case "url":
+      return { valid: "https://example.com/x", wrong: 5 };
+    case "enum":
+      return { valid: field.options?.[0]?.value ?? "x", wrong: 5 };
+    default:
+      return { valid: "text", wrong: 5 };
+  }
+}
+
+test("every public settings field is typed from the contract (valid value accepted, wrong type rejected)", () => {
+  for (const [platform, entry] of Object.entries(
+    PUBLIC_PUBLISHING_CONTRACT.platforms,
+  )) {
+    const schema = sdkTypes[`${platform}SettingsSchema`];
+    assert.ok(schema, `${platform} settings schema exists`);
+    for (const [name, field] of Object.entries(entry.capability.fields)) {
+      assert.ok(field.type, `${platform}.${name} declares a field type`);
+      if (field.valueSource === "account_discovery") continue;
+      const { valid, wrong } = sampleFor(field);
+      assert.doesNotThrow(
+        () => schema.parse({ [name]: valid }),
+        `${platform}.${name} accepts a ${field.type}`,
+      );
+      assert.throws(
+        () => schema.parse({ [name]: wrong }),
+        `${platform}.${name} rejects a wrongly typed value`,
+      );
+    }
   }
 });
