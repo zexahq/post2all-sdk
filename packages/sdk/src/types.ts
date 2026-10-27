@@ -178,6 +178,7 @@ export const telegramSettingsSchema = buildGeneratedSettingsSchema("telegram");
 export const discordSettingsSchema = buildGeneratedSettingsSchema("discord");
 
 export const wircleSettingsSchema = buildGeneratedSettingsSchema("wircle");
+export const mastodonSettingsSchema = buildGeneratedSettingsSchema("mastodon");
 
 const tiktokPrivacyValues =
   PUBLIC_PUBLISHING_CONTRACT.platforms.tiktok.capability.fields.tiktokPrivacyLevel.options.map(
@@ -1248,6 +1249,7 @@ export type TelegramSettings = z.infer<typeof telegramSettingsSchema>;
 export type DiscordSettings = z.infer<typeof discordSettingsSchema>;
 export type TiktokSettings = z.infer<typeof tiktokSettingsSchema>;
 export type WircleSettings = z.infer<typeof wircleSettingsSchema>;
+export type MastodonSettings = z.infer<typeof mastodonSettingsSchema>;
 
 export type SocialAccount = z.infer<typeof socialAccountSchema>;
 export type AccountPlatform = z.infer<typeof accountPlatformSchema>;

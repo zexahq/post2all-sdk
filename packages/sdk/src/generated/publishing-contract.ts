@@ -993,6 +993,7 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
             "video/webm",
           ],
           convertPngToJpeg: true,
+          requiresManagedMedia: true,
           maxVideoBytes: 1073741824,
           maxImageBytes: 20971520,
           maxImageWidth: 1080,
@@ -1163,6 +1164,95 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
       },
       publishedDeletion: {
         available: false,
+      },
+    },
+    mastodon: {
+      name: "Mastodon",
+      releaseStatus: "coming_soon",
+      capability: {
+        postTypes: {
+          text: true,
+          image: true,
+          video: true,
+        },
+        text: {
+          maxLength: 500,
+        },
+        media: {
+          maxImages: 4,
+          maxVideos: 1,
+          allowMixedMedia: false,
+          allowedMimeTypes: [
+            "image/gif",
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+            "video/mp4",
+            "video/quicktime",
+            "video/webm",
+          ],
+          maxImageBytes: 8388608,
+          maxVideoBytes: 41943040,
+          altText: {
+            mediaTypes: ["image", "video"],
+            maxLength: 1500,
+          },
+          description:
+            "Text-only, up to 4 images (8MB each), or 1 video (40MB); images and video cannot be mixed",
+        },
+        fields: {
+          caption: {
+            type: "text",
+            valueSource: "free_text",
+            enabled: true,
+          },
+          mastodonVisibility: {
+            type: "enum",
+            valueSource: "static_enum",
+            enabled: true,
+            label: "Visibility",
+            description:
+              "Quiet public posts are visible to everyone but kept out of public timelines.",
+            defaultValue: "public",
+            options: [
+              {
+                value: "public",
+                label: "Public",
+              },
+              {
+                value: "unlisted",
+                label: "Quiet public",
+              },
+              {
+                value: "private",
+                label: "Followers only",
+              },
+            ],
+          },
+          contentWarning: {
+            type: "text",
+            valueSource: "free_text",
+            trim: true,
+            emptyAsUndefined: true,
+            enabled: true,
+            label: "Content warning",
+            description:
+              "Hides the post text behind this warning. It counts toward the server's character limit.",
+            maxLength: 500,
+          },
+          sensitive: {
+            type: "boolean",
+            valueSource: "free_text",
+            enabled: true,
+            label: "Mark media as sensitive",
+            description:
+              "Blur the attached media until someone chooses to view it.",
+            postTypes: ["image", "video"],
+          },
+        },
+      },
+      publishedDeletion: {
+        available: true,
       },
     },
   },
@@ -1368,6 +1458,14 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
         connectionType: "api_key",
         supportsReconnect: true,
         requiresBrowser: false,
+      },
+      mastodon: {
+        name: "Mastodon",
+        releaseStatus: "coming_soon",
+        authType: "oauth",
+        connectionType: "oauth",
+        supportsReconnect: true,
+        requiresBrowser: true,
       },
     },
   },
