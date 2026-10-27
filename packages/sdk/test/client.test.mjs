@@ -47,6 +47,55 @@ test("direct SDK usage does not claim to be the CLI", async () => {
   assert.equal(headers?.get("x-post2all-client-version"), null);
 });
 
+test("API requests refuse redirects by default so the API key is not forwarded", async () => {
+  const seen = [];
+  const client = new Post2allClient({
+    apiKey: "amp_test",
+    fetchImplementation: async (_url, init) => {
+      seen.push(init?.redirect);
+      return accountListResponse();
+    },
+  });
+
+  await client.listAccounts();
+  await client.forProfile("prof_123").listAccounts();
+
+  assert.deepEqual(seen, ["manual", "manual"]);
+});
+
+test("a custom baseUrl keeps the fetch redirect default", async () => {
+  const seen = [];
+  const client = new Post2allClient({
+    apiKey: "amp_test",
+    baseUrl: "https://example.test/api/v1",
+    fetchImplementation: async (_url, init) => {
+      seen.push(init?.redirect);
+      return accountListResponse();
+    },
+  });
+
+  await client.listAccounts();
+
+  assert.deepEqual(seen, [undefined]);
+});
+
+test("redirect handling can be opted back into following", async () => {
+  let redirect;
+  const client = new Post2allClient({
+    apiKey: "amp_test",
+    baseUrl: "https://example.test/api/v1",
+    redirect: "follow",
+    fetchImplementation: async (_url, init) => {
+      redirect = init?.redirect;
+      return accountListResponse();
+    },
+  });
+
+  await client.listAccounts();
+
+  assert.equal(redirect, "follow");
+});
+
 test("response metadata exposes request, rate-limit, retry, and replay headers", async () => {
   let metadata;
   const client = new Post2allClient({

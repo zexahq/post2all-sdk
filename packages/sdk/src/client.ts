@@ -146,6 +146,14 @@ export type Post2allClientOptions = {
   clientInfo?: Post2allClientInfo;
   profileId?: string;
   onResponse?: (metadata: Post2allResponseMetadata) => void;
+  /**
+   * Redirect handling for API requests. With the default `baseUrl` this
+   * defaults to `"manual"`, so a redirect surfaces as an error response and
+   * the `x-api-key` header is never forwarded to its target. (`"manual"` rather
+   * than `"error"` because Cloudflare Workers rejects `"error"`.) A custom
+   * `baseUrl` keeps the fetch default (`"follow"`).
+   */
+  redirect?: RequestInit["redirect"];
 };
 
 export type Post2allRequestOptions = {
@@ -188,6 +196,7 @@ export class Post2allClient {
   private readonly clientInfo?: Post2allClientInfo;
   private readonly profileId?: string;
   private readonly onResponse?: (metadata: Post2allResponseMetadata) => void;
+  private readonly redirect: RequestInit["redirect"];
 
   public constructor(options: Post2allClientOptions) {
     this.apiKey = options.apiKey;
@@ -196,6 +205,9 @@ export class Post2allClient {
     this.clientInfo = options.clientInfo;
     this.profileId = options.profileId;
     this.onResponse = options.onResponse;
+    this.redirect =
+      options.redirect ??
+      (this.baseUrl === defaultBaseUrl ? "manual" : undefined);
   }
 
   public forProfile(profileId: string): Post2allClient {
@@ -210,6 +222,7 @@ export class Post2allClient {
       clientInfo: this.clientInfo,
       profileId: parsedProfileId,
       onResponse: this.onResponse,
+      redirect: this.redirect,
     });
   }
 
@@ -783,6 +796,7 @@ export class Post2allClient {
     scoped = true,
   ): Promise<Response> {
     const response = await this.fetchImplementation(`${this.baseUrl}${path}`, {
+      ...(this.redirect ? { redirect: this.redirect } : {}),
       ...init,
       headers: {
         "x-api-key": this.apiKey,

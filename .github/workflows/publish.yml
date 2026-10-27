@@ -47,14 +47,36 @@ jobs:
           registry-url: https://registry.npmjs.org
           cache: pnpm
 
+      - name: Validate SDK version input
+        if: inputs.version_sdk != ''
+        env:
+          VERSION_INPUT: ${{ inputs.version_sdk }}
+        run: |
+          pattern='^(patch|minor|major|prepatch|preminor|premajor|prerelease|[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?)$'
+          if [[ ! "$VERSION_INPUT" =~ $pattern ]]; then
+            echo "::error::Invalid version_sdk input"
+            exit 1
+          fi
+
       - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
 
       - name: Bump SDK version and sync CLI dependency
         if: inputs.version_sdk != ''
+        env:
+          VERSION_INPUT: ${{ inputs.version_sdk }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          pnpm --filter @post2all/sdk exec npm version ${{ inputs.version_sdk }} --no-git-tag-version
+          pnpm --filter @post2all/sdk exec npm version "$VERSION_INPUT" --no-git-tag-version
           VERSION=$(node -p "require('./packages/sdk/package.json').version")
           pnpm --filter @post2all/cli add "@post2all/sdk@workspace:^$VERSION"
           git add packages/sdk/package.json packages/cli/package.json pnpm-lock.yaml
@@ -92,14 +114,36 @@ jobs:
           git checkout main
           git reset --hard origin/main
 
+      - name: Validate CLI version input
+        if: inputs.version_cli != ''
+        env:
+          VERSION_INPUT: ${{ inputs.version_cli }}
+        run: |
+          pattern='^(patch|minor|major|prepatch|preminor|premajor|prerelease|[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?)$'
+          if [[ ! "$VERSION_INPUT" =~ $pattern ]]; then
+            echo "::error::Invalid version_cli input"
+            exit 1
+          fi
+
       - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
 
       - name: Bump version
         if: inputs.version_cli != ''
+        env:
+          VERSION_INPUT: ${{ inputs.version_cli }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          pnpm --filter @post2all/cli exec npm version ${{ inputs.version_cli }} --no-git-tag-version
+          pnpm --filter @post2all/cli exec npm version "$VERSION_INPUT" --no-git-tag-version
           VERSION=$(node -p "require('./packages/cli/package.json').version")
           git add packages/cli/package.json
           git commit -m "chore(cli): bump to v$VERSION"

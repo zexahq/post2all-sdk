@@ -6,9 +6,11 @@ Official command-line client for the post2all REST API.
 
 ```bash
 pnpm add -g @post2all/cli
-post2all config set-key amp_xxx
+post2all config set-key   # prompts for the key; or: printf '%s' "$KEY" | post2all config set-key -
 post2all config whoami
 ```
+
+`post2all config set-key <key>` still works, but passing the key on the command line stores it in shell history; prefer stdin or the `POST2ALL_API_KEY` environment variable. The config file is written with `0600` permissions inside a `0700` directory.
 
 Credentials are resolved in this order: `--api-key`, `POST2ALL_API_KEY`, then `~/.config/post2all/config.json`.
 

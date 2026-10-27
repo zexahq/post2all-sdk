@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { readFileSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 import {
@@ -269,8 +269,41 @@ async function loadConfig(): Promise<CliConfig> {
 
 async function saveConfig(config: CliConfig): Promise<void> {
   const path = resolveConfigPath();
-  await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, JSON.stringify(config, null, 2), "utf8");
+  await mkdir(dirname(path), { recursive: true, mode: 0o700 });
+  await writeFile(path, JSON.stringify(config, null, 2), {
+    encoding: "utf8",
+    mode: 0o600,
+  });
+  // writeFile's mode only applies when the file is created; tighten existing
+  // files too. chmod is best-effort (it is a no-op/unsupported on Windows).
+  try {
+    await chmod(path, 0o600);
+  } catch {
+    // Ignore platforms or filesystems that do not support POSIX permissions.
+  }
+}
+
+async function readApiKeyFromStdin(): Promise<string> {
+  if (process.stdin.isTTY) {
+    process.stderr.write("Enter post2all API key: ");
+    const { createInterface } = await import("node:readline");
+    const rl = createInterface({ input: process.stdin, terminal: false });
+    try {
+      const line = await new Promise<string>((resolve) => {
+        rl.once("line", resolve);
+        rl.once("close", () => resolve(""));
+      });
+      return line.trim();
+    } finally {
+      rl.close();
+    }
+  }
+
+  const chunks: Buffer[] = [];
+  for await (const chunk of process.stdin) {
+    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+  }
+  return Buffer.concat(chunks).toString("utf8").trim();
 }
 
 async function createClient(rootOptions: RootOptions): Promise<Post2allClient> {
@@ -280,7 +313,7 @@ async function createClient(rootOptions: RootOptions): Promise<Post2allClient> {
 
   if (!apiKey) {
     throw new Error(
-      "Missing API key. Use --api-key, set POST2ALL_API_KEY, or run `post2all config set-key <key>`.",
+      "Missing API key. Use --api-key, set POST2ALL_API_KEY, or run `post2all config set-key` (reads the key from stdin).",
     );
   }
 
@@ -642,10 +675,26 @@ const configCommand = program
 
 configCommand
   .command("set-key")
-  .description("Store API key in local config")
-  .argument("<apiKey>", "post2all API key")
-  .action(async (apiKey: string) => {
+  .description(
+    "Store API key in local config (omit the key or pass - to read it from stdin)",
+  )
+  .argument(
+    "[apiKey]",
+    "post2all API key; omit or use - to read from stdin and keep it out of shell history",
+  )
+  .addHelpText(
+    "after",
+    "\nExamples:\n  printf '%s' \"$POST2ALL_API_KEY\" | post2all config set-key -\n  post2all config set-key   # prompts for the key on a terminal",
+  )
+  .action(async (apiKeyArgument: string | undefined) => {
     try {
+      const apiKey =
+        apiKeyArgument === undefined || apiKeyArgument === "-"
+          ? await readApiKeyFromStdin()
+          : apiKeyArgument;
+      if (!apiKey) {
+        throw new Error("No API key provided on stdin.");
+      }
       const config = await loadConfig();
       config.apiKey = apiKey;
       await saveConfig(config);

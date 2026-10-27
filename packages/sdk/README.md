@@ -49,6 +49,8 @@ For production creates, pass a stable idempotency key so a timeout can be retrie
 await client.createPost(input, { idempotencyKey: "customer-job-123" });
 ```
 
+With the default `baseUrl`, API requests do not follow HTTP redirects (`redirect: "manual"`), so your `x-api-key` is never forwarded to another host. A custom `baseUrl` keeps the fetch default; pass `redirect: "manual"` to opt in to the same protection.
+
 `targets` is a discriminated union. Once `platform` is selected, TypeScript and Zod only accept settings supported by that platform.
 
 Platform IDs, settings fields, fixed enums, limits, static account-connection metadata, the `publishedDeletion.available` capability, and sanitized analytics schema metadata are generated from the private monorepo's public contract. Do not edit the generated contract file in this repository; the release synchronization job regenerates it.

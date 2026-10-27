@@ -15,7 +15,7 @@ Open-source TypeScript SDK and CLI for the [post2all](https://www.post2all.com) 
 
 ```bash
 pnpm add -g @post2all/cli
-post2all config set-key amp_xxx
+post2all config set-key   # prompts for the key; or: printf '%s' "$KEY" | post2all config set-key -
 post2all accounts
 ```
 
