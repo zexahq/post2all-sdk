@@ -158,8 +158,9 @@ Supported target settings include:
 - Telegram: `caption`, `linkUrl`, `linkText`, `disableNotification`, `protectContent`
 - Discord: `caption`, `channelId`, `autoCrosspost`
 - TikTok: `caption`, `title`, `tiktokContentPostingMethod`, `tiktokPrivacyLevel`, `tiktokDisableComment`, `tiktokDisableDuet`, `tiktokDisableStitch`
+- Mastodon: `caption`, `mastodonVisibility` (`public`, `unlisted`, `private`), `contentWarning`, `sensitive`. Each server sets its own character limit (500 by default); read `capability.text.maxLength` from the account's publishing schema. Links count as 23 characters and the content warning counts toward the limit. Up to 4 images (8 MB each) or 1 video (40 MB), not mixed. Connect with `post2all account connect mastodon --handle you@mastodon.social` (a bare server such as `mastodon.social` also works).
 
-For TikTok, `tiktokContentPostingMethod` is `DIRECT_POST` or `UPLOAD`. Upload sends media to the creator's TikTok inbox for editing and is reported as a successful `completed` post with an `uploaded` target.
+For TikTok, `tiktokContentPostingMethod` is `DIRECT_POST` or `UPLOAD`. Upload sends media to the creator's TikTok inbox for editing and is reported as a successful `completed` post with an `uploaded` target. TikTok requires post2all-managed media: upload with `post2all media upload` and attach by `id`, not by direct `url`.
 
 Do not invent fields. Prefer the main content for shared copy and use target `caption` only for account-specific overrides. Alt text is media metadata, not a target setting.
 

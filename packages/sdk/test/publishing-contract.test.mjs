@@ -4,6 +4,7 @@ import { PUBLIC_PUBLISHING_CONTRACT } from "../dist/generated/publishing-contrac
 import * as sdkTypes from "../dist/types.js";
 import {
   instagramSettingsSchema,
+  mastodonSettingsSchema,
   blueskySettingsSchema,
   facebookSettingsSchema,
   threadsSettingsSchema,
@@ -43,6 +44,45 @@ test("generated Wircle contract exposes the public text and image capabilities",
       { platform: "wircle", accountId: "account-wircle-1", settings: {} },
     ]),
     [{ platform: "wircle", accountId: "account-wircle-1", settings: {} }],
+  );
+});
+
+test("generated Mastodon contract is public with typed settings", () => {
+  const mastodon = PUBLIC_PUBLISHING_CONTRACT.platforms.mastodon;
+
+  assert.equal(mastodon.releaseStatus, "public");
+  assert.equal(
+    PUBLIC_PUBLISHING_CONTRACT.accounts.platforms.mastodon.releaseStatus,
+    "public",
+  );
+  assert.equal(platformSchema.parse("mastodon"), "mastodon");
+  assert.equal(mastodon.publishedDeletion.available, true);
+  assert.deepEqual(
+    mastodonSettingsSchema.parse({
+      mastodonVisibility: "unlisted",
+      contentWarning: "cw",
+      sensitive: true,
+    }),
+    { mastodonVisibility: "unlisted", contentWarning: "cw", sensitive: true },
+  );
+  assert.throws(() =>
+    mastodonSettingsSchema.parse({ mastodonVisibility: "direct" }),
+  );
+  assert.deepEqual(
+    postTargetsSchema.parse([
+      {
+        platform: "mastodon",
+        accountId: "account-mastodon-1",
+        settings: { mastodonVisibility: "private" },
+      },
+    ]),
+    [
+      {
+        platform: "mastodon",
+        accountId: "account-mastodon-1",
+        settings: { mastodonVisibility: "private" },
+      },
+    ],
   );
 });
 

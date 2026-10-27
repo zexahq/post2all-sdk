@@ -855,7 +855,10 @@ accountCommand
   .description("Start a social account connection")
   .argument("<platform>", "Social platform")
   .option("--redirect-url <url>", "Return the browser to this URL after OAuth")
-  .option("--handle <handle>", "Bluesky handle or authorization server")
+  .option(
+    "--handle <handle>",
+    "Bluesky handle or authorization server; Mastodon server or you@server",
+  )
   .option(
     "--api-key <key>",
     "API key for credential-based platforms such as Wircle",
@@ -917,7 +920,10 @@ accountCommand
   .description("Reconnect the exact social identity for an existing account")
   .argument("<accountId>", "Social account ID")
   .option("--redirect-url <url>", "Return the browser to this URL after OAuth")
-  .option("--handle <handle>", "Bluesky handle or authorization server")
+  .option(
+    "--handle <handle>",
+    "Bluesky handle or authorization server; Mastodon server or you@server",
+  )
   .option("--api-key <key>", "Replacement Wircle API key")
   .option("--profile-handle <handle>", "Wircle profile handle")
   .option("--json", "Output JSON")

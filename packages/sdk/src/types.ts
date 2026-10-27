@@ -1337,6 +1337,7 @@ export type UploadMediaFromUrlResponse = z.infer<
 export type CreatePostInput = z.input<typeof createPostInputSchema>;
 export type ConnectAccountInput = {
   redirectUrl?: string;
+  /** Bluesky handle or authorization server; required for Mastodon as the server or `you@server`. */
   handle?: string;
   credentials?: z.input<typeof wircleAccountCredentialsSchema>;
 };

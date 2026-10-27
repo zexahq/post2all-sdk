@@ -54,6 +54,17 @@ Call `constraints` once before composing to load every platform limit and connec
 
 Treat publishing options as the source of truth for text, media, and field constraints. Limits can be account-specific—for example, X paid tiers receive a different text limit. Do not pass `--type`. Composition is inferred from attached media; mixed image/video is allowed only when platform `media.allowMixedMedia` is true. When `capability.media.altText` is present, use `--media` to set optional alt text on each media item. X intentionally does not expose that capability.
 
+Mastodon settings are `caption`, `mastodonVisibility` (`public`, `unlisted` for quiet public, or `private` for followers only; defaults to `public`), `contentWarning`, and `sensitive` (blurs attached media; image and video posts only). Each server sets its own character limit (500 by default, which the schema reports per account in `capability.text.maxLength`); links count as 23 characters and the content warning counts toward the limit. Attach up to 4 images (8 MB each) or 1 video (40 MB); images and video cannot be mixed. Published-post deletion is available for Mastodon targets.
+
+```bash
+post2all post create \
+  --content "Release notes are up: https://example.com/changelog" \
+  --targets '[{"platform":"mastodon","accountId":"acc_mastodon_123","settings":{"mastodonVisibility":"unlisted","contentWarning":"Release notes","sensitive":false}}]' \
+  --delivery now
+```
+
+TikTok requires post2all-managed media (`capability.media.requiresManagedMedia`): run `post2all media upload` (file or `--url`) and attach the returned `id`; direct `url` media is rejected for TikTok targets.
+
 ## Connect and manage accounts
 
 List the connection methods currently available to your workspace:
@@ -86,6 +97,14 @@ post2all account disconnect <accountId>
 ```
 
 Telegram prints a bot username and short-lived connection code instead of an OAuth URL. Wircle uses `--api-key` and `--profile-handle`.
+
+Mastodon accounts live on independent servers, so pass the account handle (or just the server, such as `mastodon.social`) with `--handle`. The same flag works with `account reconnect`:
+
+```bash
+post2all account connect mastodon \
+  --handle you@mastodon.social \
+  --redirect-url https://app.example.com/settings/social/complete
+```
 
 For automation, add `--json` and keep the post2all API key on the trusted backend/CLI host rather than exposing it to browser code.
 

@@ -1168,7 +1168,7 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
     },
     mastodon: {
       name: "Mastodon",
-      releaseStatus: "coming_soon",
+      releaseStatus: "public",
       capability: {
         postTypes: {
           text: true,
@@ -1461,7 +1461,7 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
       },
       mastodon: {
         name: "Mastodon",
-        releaseStatus: "coming_soon",
+        releaseStatus: "public",
         authType: "oauth",
         connectionType: "oauth",
         supportsReconnect: true,

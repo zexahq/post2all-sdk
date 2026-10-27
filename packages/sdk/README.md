@@ -145,6 +145,17 @@ const wircle = await client.connectAccount("wircle", {
 });
 ```
 
+Mastodon accounts live on independent servers, so pass the account's handle (or just its server, such as `mastodon.social`) as `handle`. The server must be reachable; post2all registers an OAuth app on it and returns the server's authorization URL:
+
+```ts
+const mastodon = await client.connectAccount("mastodon", {
+  handle: "you@mastodon.social",
+  redirectUrl: "https://app.example.com/social/complete",
+});
+```
+
+Pass the same `handle` option to `reconnectAccount()` when reconnecting a Mastodon account.
+
 ## Delivery modes
 
 ```ts
@@ -191,6 +202,30 @@ console.log(options.accounts[0]?.boards);
 `capability` is the authoritative, account-specific constraint set. Read it before composing or validating a post instead of hard-coding platform limits. For example, an X account's `capability.text.maxLength` reflects whether that account is Free, Basic, Premium, or Premium+.
 
 Do not send a fixed post type. Composition is inferred from attached media. Mixed image/video is allowed only when platform `media.allowMixedMedia` is true. When `capability.media.altText` is present, each attached media item may include its own `altText`; use the returned media types and maximum length. X intentionally does not expose media alt text.
+
+Mastodon settings are `caption`, `mastodonVisibility` (`public`, `unlisted` for quiet public, or `private` for followers only; defaults to `public`), `contentWarning`, and `sensitive` (blurs attached media; image and video posts only). Each server sets its own character limit (500 by default, which the schema reports per account in `capability.text.maxLength`); links count as 23 characters and the content warning counts toward the limit. Attach up to 4 images (8 MB each) or 1 video (40 MB); images and video cannot be mixed. Published-post deletion is available for Mastodon targets.
+
+```ts
+import { mastodonSettingsSchema } from "@post2all/sdk";
+
+await client.createPost({
+  content: "Release notes are up: https://example.com/changelog",
+  targets: [
+    {
+      platform: "mastodon",
+      accountId: "acc_mastodon_123",
+      settings: mastodonSettingsSchema.parse({
+        mastodonVisibility: "unlisted",
+        contentWarning: "Release notes",
+        sensitive: false,
+      }),
+    },
+  ],
+  delivery: { mode: "now" },
+});
+```
+
+TikTok requires post2all-managed media (`capability.media.requiresManagedMedia`): upload or import files with `uploadMedia()` / `uploadMediaFromUrl()` and attach them by `id`; direct caller-managed `url` media is rejected for TikTok targets.
 
 ## Credit billing and publishing capacity
 
