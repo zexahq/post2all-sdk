@@ -7,6 +7,7 @@ import { dirname, join } from "node:path";
 import {
   Post2allApiError,
   Post2allClient,
+  analyticsSortBySchema,
   platformSchema,
   postMediaInputSchema,
   postTargetsSchema,
@@ -1100,7 +1101,7 @@ accountCommand
   .option("--limit <limit>", "Posts per page (maximum 50)")
   .option(
     "--sort-by <metric>",
-    "Sort by publishedAt, views, reach, likes, comments, shares, saves, replies, reposts, or quotes",
+    `Sort by ${analyticsSortBySchema.options.join(", ")}`,
   )
   .option("--sort-direction <direction>", "Sort direction: asc or desc")
   .option("--refresh", "Fetch fresh provider analytics instead of using cache")

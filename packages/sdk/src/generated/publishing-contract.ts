@@ -1274,6 +1274,9 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
       "replies",
       "reposts",
       "quotes",
+      "reactions",
+      "impressions",
+      "clicks",
     ],
     sortDirections: ["asc", "desc"],
     metricKeys: [
@@ -1288,6 +1291,7 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
       "quotes",
       "saves",
       "clicks",
+      "outboundClicks",
       "engagements",
       "reactions",
       "followers",
