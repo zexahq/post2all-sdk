@@ -56,6 +56,8 @@ Treat publishing options as the source of truth for text, media, and field const
 
 Mastodon settings are `caption`, `mastodonVisibility` (`public`, `unlisted` for quiet public, or `private` for followers only; defaults to `public`), `contentWarning`, and `sensitive` (blurs attached media; image and video posts only). Each server sets its own character limit (500 by default, which the schema reports per account in `capability.text.maxLength`); links count as 23 characters and the content warning counts toward the limit. Attach up to 4 images (8 MB each) or 1 video (40 MB); images and video cannot be mixed. Published-post deletion is available for Mastodon targets.
 
+Slack settings are `caption`, `channelId` (required; pick it from the `destinations` returned by `post2all account publishing-options <accountId>`), and `unfurlLinks` (defaults to `true`). Messages hold up to 4,000 characters and up to 10 files uploaded natively to the workspace (images up to 20 MB, videos up to 200 MB, mixed freely). Public channels post right away; invite the post2all app to a private channel first. Published-post deletion is available for Slack targets.
+
 ```bash
 post2all post create \
   --content "Release notes are up: https://example.com/changelog" \

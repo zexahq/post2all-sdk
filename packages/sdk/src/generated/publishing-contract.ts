@@ -1255,6 +1255,75 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
         available: true,
       },
     },
+    slack: {
+      name: "Slack",
+      releaseStatus: "public",
+      capability: {
+        postTypes: {
+          text: true,
+          image: true,
+          video: true,
+        },
+        text: {
+          maxLength: 4000,
+        },
+        media: {
+          maxItems: 10,
+          maxImages: 10,
+          maxVideos: 10,
+          allowMixedMedia: true,
+          allowedMimeTypes: [
+            "image/gif",
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+            "video/mp4",
+            "video/quicktime",
+            "video/webm",
+          ],
+          maxImageBytes: 20971520,
+          maxVideoBytes: 209715200,
+          altText: {
+            mediaTypes: ["image"],
+            maxLength: 1000,
+          },
+          description:
+            "Up to 10 mixed files per message: images up to 20 MiB and videos up to 200 MiB, uploaded natively to the workspace",
+        },
+        fields: {
+          caption: {
+            type: "text",
+            valueSource: "free_text",
+            enabled: true,
+            maxLength: 4000,
+          },
+          channelId: {
+            type: "enum",
+            valueSource: "account_discovery",
+            discoveryKey: "destinations",
+            emptyAsUndefined: true,
+            enabled: true,
+            required: true,
+            requiredMessage: "Please select a Slack channel",
+            label: "Channel",
+            description:
+              "Public channels are available immediately; invite the post2all app to a private channel to post there.",
+          },
+          unfurlLinks: {
+            type: "boolean",
+            valueSource: "free_text",
+            enabled: true,
+            label: "Show link previews",
+            description:
+              "Let Slack expand links and media in the message into preview cards.",
+            defaultValue: true,
+          },
+        },
+      },
+      publishedDeletion: {
+        available: true,
+      },
+    },
   },
   analytics: {
     defaultRangeDays: 30,
@@ -1465,6 +1534,14 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
       },
       mastodon: {
         name: "Mastodon",
+        releaseStatus: "public",
+        authType: "oauth",
+        connectionType: "oauth",
+        supportsReconnect: true,
+        requiresBrowser: true,
+      },
+      slack: {
+        name: "Slack",
         releaseStatus: "public",
         authType: "oauth",
         connectionType: "oauth",

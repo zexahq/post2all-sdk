@@ -179,6 +179,7 @@ export const discordSettingsSchema = buildGeneratedSettingsSchema("discord");
 
 export const wircleSettingsSchema = buildGeneratedSettingsSchema("wircle");
 export const mastodonSettingsSchema = buildGeneratedSettingsSchema("mastodon");
+export const slackSettingsSchema = buildGeneratedSettingsSchema("slack");
 
 const tiktokPrivacyValues =
   PUBLIC_PUBLISHING_CONTRACT.platforms.tiktok.capability.fields.tiktokPrivacyLevel.options.map(
@@ -281,11 +282,29 @@ export const postMediaInputSchema = z.union([
     .strict(),
 ]);
 
+/**
+ * Shared content is optional when every target carries its own caption: each platform
+ * publishes `settings.caption` in place of the shared text.
+ */
+function everyTargetHasCaption(
+  targets: readonly { settings?: object | undefined }[] | undefined,
+): boolean {
+  return (
+    (targets?.length ?? 0) > 0 &&
+    targets!.every((target) => {
+      const caption = (target.settings as { caption?: unknown } | undefined)
+        ?.caption;
+      return typeof caption === "string" && caption.trim().length > 0;
+    })
+  );
+}
+
 function addPostContentIssues(
   value: {
     content?: string;
     media?: z.infer<typeof postMediaInputSchema>[];
     mediaIds?: string[];
+    targets?: readonly { settings?: object | undefined }[];
   },
   ctx: z.RefinementCtx,
   requireComplete: boolean,
@@ -293,7 +312,11 @@ function addPostContentIssues(
   if (!requireComplete) return;
   const hasMedia =
     (value.media?.length ?? 0) > 0 || (value.mediaIds?.length ?? 0) > 0;
-  if (!hasMedia && !value.content?.trim()) {
+  if (
+    !hasMedia &&
+    !value.content?.trim() &&
+    !everyTargetHasCaption(value.targets)
+  ) {
     ctx.addIssue({
       code: "custom",
       path: ["content"],
@@ -1250,6 +1273,7 @@ export type DiscordSettings = z.infer<typeof discordSettingsSchema>;
 export type TiktokSettings = z.infer<typeof tiktokSettingsSchema>;
 export type WircleSettings = z.infer<typeof wircleSettingsSchema>;
 export type MastodonSettings = z.infer<typeof mastodonSettingsSchema>;
+export type SlackSettings = z.infer<typeof slackSettingsSchema>;
 
 export type SocialAccount = z.infer<typeof socialAccountSchema>;
 export type AccountPlatform = z.infer<typeof accountPlatformSchema>;

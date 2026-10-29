@@ -159,6 +159,7 @@ Supported target settings include:
 - Discord: `caption`, `channelId`, `autoCrosspost`
 - TikTok: `caption`, `title`, `tiktokContentPostingMethod`, `tiktokPrivacyLevel`, `tiktokDisableComment`, `tiktokDisableDuet`, `tiktokDisableStitch`
 - Mastodon: `caption`, `mastodonVisibility` (`public`, `unlisted`, `private`), `contentWarning`, `sensitive`. Each server sets its own character limit (500 by default); read `capability.text.maxLength` from the account's publishing schema. Links count as 23 characters and the content warning counts toward the limit. Up to 4 images (8 MB each) or 1 video (40 MB), not mixed. Connect with `post2all account connect mastodon --handle you@mastodon.social` (a bare server such as `mastodon.social` also works).
+- Slack: `caption`, `channelId` (required; choose from the `destinations` in `post2all account publishing-options`), `unfurlLinks` (defaults to `true`). Up to 4,000 characters and 10 files per message (images up to 20 MB, videos up to 200 MB, mixed). Public channels post right away; the post2all app must be invited to private channels.
 
 For TikTok, `tiktokContentPostingMethod` is `DIRECT_POST` or `UPLOAD`. Upload sends media to the creator's TikTok inbox for editing and is reported as a successful `completed` post with an `uploaded` target. TikTok requires post2all-managed media: upload with `post2all media upload` and attach by `id`, not by direct `url`.
 

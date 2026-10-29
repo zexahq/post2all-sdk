@@ -14,6 +14,12 @@ All notable changes to the post2all SDK and CLI are documented here.
 - Added typed analytics metric definitions, comparison data, pagination, refresh controls, and per-target availability statuses.
 - Added Mastodon as a public platform. Connect with `connectAccount("mastodon", { handle: "you@mastodon.social" })` or `post2all account connect mastodon --handle you@mastodon.social`; the handle (or bare server) selects the Mastodon server to authorize against.
 - Added the `mastodonSettingsSchema` export and `MastodonSettings` type for Mastodon targets: `mastodonVisibility` (`public`, `unlisted`, `private`), `contentWarning`, and `sensitive`.
+- Added Slack as a public platform. Connect with `connectAccount("slack")` or `post2all account connect slack`; the authorization URL installs the post2all app into the workspace the user picks, and that workspace becomes the connected account.
+- Added the `slackSettingsSchema` export and `SlackSettings` type for Slack targets: `channelId` (required; choose from the `destinations` returned by publishing options) and `unfurlLinks` (defaults to `true`).
+
+### Changed
+
+- Shared `content` is no longer required when every target carries its own `settings.caption`; each platform publishes its caption in place of the shared text. Media-less posts with any target missing a caption are still rejected.
 
 ### Notes
 
@@ -21,6 +27,7 @@ All notable changes to the post2all SDK and CLI are documented here.
 - `redirectUrl` must use HTTPS except loopback HTTP for local development and is limited to 2048 characters.
 - Account analytics default to the latest 30 inclusive UTC days and accept ranges up to 90 days.
 - Provider-wide account post analytics can include posts published outside post2all when supported; these are identified by `origin: "external"`.
+- Slack messages hold up to 4,000 characters and up to 10 files uploaded natively to the workspace (images up to 20 MB, videos up to 200 MB, mixed freely). Public channels post right away; invite the post2all app to a private channel first. Published-post deletion is available for Slack targets.
 - Mastodon character limits are per server (500 by default) and reported per account in the publishing schema; links count as 23 characters and the content warning counts toward the limit. Media is up to 4 images (8 MB each) or 1 video (40 MB), not mixed. Published-post deletion is available for Mastodon targets.
 - TikTok targets require post2all-managed media (`capability.media.requiresManagedMedia`); attach uploaded media by `id` rather than direct `url`.
 - The generated public contract now also carries sanitized analytics schema metadata (ranges, sort keys, metric keys, formats, and public statuses) so SDK/CLI validation stays aligned with the monorepo contract source.

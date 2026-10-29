@@ -205,6 +205,8 @@ Do not send a fixed post type. Composition is inferred from attached media. Mixe
 
 Mastodon settings are `caption`, `mastodonVisibility` (`public`, `unlisted` for quiet public, or `private` for followers only; defaults to `public`), `contentWarning`, and `sensitive` (blurs attached media; image and video posts only). Each server sets its own character limit (500 by default, which the schema reports per account in `capability.text.maxLength`); links count as 23 characters and the content warning counts toward the limit. Attach up to 4 images (8 MB each) or 1 video (40 MB); images and video cannot be mixed. Published-post deletion is available for Mastodon targets.
 
+Slack settings are `caption`, `channelId` (required; pick it from the `destinations` returned by `getPublishingOptions()`), and `unfurlLinks` (defaults to `true`; set `false` to post links without Slack preview cards). Messages hold up to 4,000 characters and up to 10 files, uploaded natively to the workspace: images (GIF, JPEG, PNG, WebP) up to 20 MB each and videos (MP4, MOV, WebM) up to 200 MB each, mixed freely. Public channels post right away; invite the post2all app to a private channel first. Published-post deletion is available for Slack targets.
+
 ```ts
 import { mastodonSettingsSchema } from "@post2all/sdk";
 

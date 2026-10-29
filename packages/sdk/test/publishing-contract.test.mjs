@@ -284,3 +284,30 @@ test("every public settings field is typed from the contract (valid value accept
     }
   }
 });
+
+test("publishing without shared content is allowed when every target has its own caption", () => {
+  const target = (caption) => ({
+    platform: "discord",
+    accountId: "acc_discord",
+    settings: {
+      channelId: "123",
+      ...(caption === undefined ? {} : { caption }),
+    },
+  });
+  const now = { delivery: { mode: "now" } };
+  assert.doesNotThrow(() =>
+    sdkTypes.createPostInputSchema.parse({
+      ...now,
+      targets: [target("Hello")],
+    }),
+  );
+  assert.throws(() =>
+    sdkTypes.createPostInputSchema.parse({
+      ...now,
+      targets: [target("Hello"), target()],
+    }),
+  );
+  assert.throws(() =>
+    sdkTypes.createPostInputSchema.parse({ ...now, targets: [target()] }),
+  );
+});
