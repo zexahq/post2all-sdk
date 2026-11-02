@@ -229,6 +229,36 @@ await client.createPost({
 
 TikTok requires post2all-managed media (`capability.media.requiresManagedMedia`): upload or import files with `uploadMedia()` / `uploadMediaFromUrl()` and attach them by `id`; direct caller-managed `url` media is rejected for TikTok targets.
 
+## First comments
+
+X, Instagram (feed posts and reels), Facebook Pages, Threads, Bluesky, and Wircle targets accept an optional `firstComment` that the same account posts under the published post, plus `firstCommentDelaySeconds` (integer, 0–86400) counted from the moment that target publishes. Check `schema.accounts[i].firstComment` from `getPublishingSchema()` first: when `available` is `false`, show the `reason` (usually the account must be reconnected to grant comment permissions) and omit both fields. The per-platform comment length is reported in `capability.fields.firstComment.maxLength`. A delay without a comment is rejected. On X each comment is one extra API create, billed like a post.
+
+```ts
+await client.createPost({
+  content: "Our new pricing is live.",
+  targets: [
+    {
+      platform: "instagram",
+      accountId: "acc_instagram_123",
+      settings: {
+        firstComment: "Full breakdown: https://example.com/pricing",
+        firstCommentDelaySeconds: 120,
+      },
+    },
+  ],
+  delivery: { mode: "now" },
+});
+```
+
+Each published target reports `firstComment: { status, dueAt, sentAt, platformCommentId, error }` from `getPost()`. Retry a definitively `failed` comment or cancel a `pending` one without touching the parent post:
+
+```ts
+await client.retryFirstComment("post_abc", "post_account_1");
+await client.cancelFirstComment("post_abc", "post_account_1");
+```
+
+A comment in `unknown` state cannot be retried automatically; check the platform before resending.
+
 ## Credit billing and publishing capacity
 
 Organizations manually onboarded onto credit billing can inspect their prepaid access and selected-account rolling publishing capacity:

@@ -65,6 +65,8 @@ import {
   deletePublishedPostResponseSchema,
   type CancelPostResponse,
   cancelPostResponseSchema,
+  firstCommentActionResponseSchema,
+  type FirstCommentActionResponse,
   type ConfirmMediaUploadResponse,
   confirmMediaUploadResponseSchema,
   type CreateMediaUploadInput,
@@ -744,6 +746,51 @@ export class Post2allClient {
       },
     );
     return this.parseJson(response, retryPostResponseSchema);
+  }
+
+  /** Re-queue a first comment whose delivery definitively failed. */
+  public async retryFirstComment(
+    postId: string,
+    postAccountId: string,
+  ): Promise<FirstCommentActionResponse> {
+    return this.firstCommentAction(postId, postAccountId, "retry");
+  }
+
+  /** Cancel a first comment that has not been sent yet. */
+  public async cancelFirstComment(
+    postId: string,
+    postAccountId: string,
+  ): Promise<FirstCommentActionResponse> {
+    return this.firstCommentAction(postId, postAccountId, "cancel");
+  }
+
+  private async firstCommentAction(
+    postId: string,
+    postAccountId: string,
+    action: "retry" | "cancel",
+  ): Promise<FirstCommentActionResponse> {
+    if (!postId) {
+      throw new Post2allApiError("postId is required", {
+        status: 400,
+        code: "INVALID_REQUEST",
+      });
+    }
+    if (!postAccountId) {
+      throw new Post2allApiError("postAccountId is required", {
+        status: 400,
+        code: "INVALID_REQUEST",
+      });
+    }
+
+    const response = await this.request(
+      `/posts/${encodeURIComponent(postId)}/targets/${encodeURIComponent(postAccountId)}/first-comment/${action}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      },
+    );
+    return this.parseJson(response, firstCommentActionResponseSchema);
   }
 
   public async deletePublishedPost(

@@ -6,6 +6,9 @@ All notable changes to the post2all SDK and CLI are documented here.
 
 ### Added
 
+- First comments are public on X, Instagram, Facebook Pages, Threads, Bluesky, and Wircle targets. The generated contract now exposes `firstComment` (text, per-platform limit) and `firstCommentDelaySeconds` (integer 0–86400) in those platforms' settings schemas, and `getPublishingSchema()` reports per-account `firstComment: { available, reason }`.
+- Added `retryFirstComment(postId, postAccountId)` and `cancelFirstComment(postId, postAccountId)` SDK methods, plus the `post first-comment-retry` and `post first-comment-cancel` CLI commands.
+
 - Added typed social-account lifecycle SDK methods: `listAccountPlatforms`, `connectAccount`, `getAccountConnection`, `getAccount`, `reconnectAccount`, and `disconnectAccount`.
 - Added CLI commands for starting OAuth/Telegram/Wircle connections, checking connection status, reconnecting exact provider identities, inspecting accounts, and disconnecting accounts.
 - Added headless OAuth support for third-party SaaS integrations: end users can authorize social accounts without a post2all account or login session, then return to the caller's own redirect URL.

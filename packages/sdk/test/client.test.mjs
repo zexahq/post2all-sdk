@@ -629,6 +629,37 @@ test("post analytics supports an explicit provider refresh", async () => {
   assert.equal(result.postId, "post-1");
 });
 
+test("first comment retry and cancel target one post account with an empty body", async () => {
+  const calls = [];
+  const client = new Post2allClient({
+    apiKey: "amp_test",
+    baseUrl: "https://example.test/api/v1",
+    fetchImplementation: async (url, init) => {
+      calls.push({ url: String(url), method: init?.method, body: init?.body });
+      return Response.json({ success: true });
+    },
+  });
+
+  const retried = await client.retryFirstComment("post-1", "post_account_1");
+  const cancelled = await client.cancelFirstComment("post-1", "post_account_1");
+
+  assert.deepEqual(calls, [
+    {
+      url: "https://example.test/api/v1/posts/post-1/targets/post_account_1/first-comment/retry",
+      method: "POST",
+      body: "{}",
+    },
+    {
+      url: "https://example.test/api/v1/posts/post-1/targets/post_account_1/first-comment/cancel",
+      method: "POST",
+      body: "{}",
+    },
+  ]);
+  assert.equal(retried.success, true);
+  assert.equal(cancelled.success, true);
+  await assert.rejects(() => client.retryFirstComment("post-1", ""));
+});
+
 test("post retry sends only the optional schedule time", async () => {
   let requestedUrl;
   let requestedInit;

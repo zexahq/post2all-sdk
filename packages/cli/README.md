@@ -190,6 +190,24 @@ post2all post create \
 
 No delivery flag means `draft`. Immediate publishing is always explicit with `--delivery now`.
 
+Add a first comment on X, Instagram, Facebook, Threads, Bluesky, or Wircle targets with `settings.firstComment` and an optional `settings.firstCommentDelaySeconds` (0–86400, counted from when that target publishes). Check `firstComment.available` per account in `post2all constraints <accountId...> --json` first; a `false` value means the account must be reconnected to grant comment permissions.
+
+```bash
+post2all post create \
+  --content "Our new pricing is live." \
+  --targets '[
+    {
+      "platform": "instagram",
+      "accountId": "acc_instagram_123",
+      "settings": {
+        "firstComment": "Full breakdown: https://example.com/pricing",
+        "firstCommentDelaySeconds": 120
+      }
+    }
+  ]' \
+  --delivery now
+```
+
 ## Media
 
 ```bash
@@ -241,6 +259,13 @@ post2all post delete post_abc
 ```
 
 `post get --json` includes `deletion.available` and `deletion.reason` on each target. Use `post delete-published` only after `deletion.available` is `true` and the user confirms the destructive action. Private rollout platforms remain unavailable through the CLI. The post2all post stays intact.
+
+Each target in `post get --json` also carries `firstComment.status` (`pending`, `sending`, `sent`, `failed`, `cancelled`, or `unknown`). Retry a `failed` comment or cancel a `pending` one:
+
+```bash
+post2all post first-comment-retry post_abc --post-account-id post_account_1 --json
+post2all post first-comment-cancel post_abc --post-account-id post_account_1
+```
 
 `post delete` removes the record from post2all and cancels any pending schedule. Content already published to social platforms remains live there.
 

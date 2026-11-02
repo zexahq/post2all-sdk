@@ -1207,6 +1207,10 @@ export const retryPostResponseSchema = z.object({
 
 export const deletePostResponseSchema = z.object({ success: z.boolean() });
 
+export const firstCommentActionResponseSchema = z.object({
+  success: z.boolean(),
+});
+
 export const deletePublishedPostResponseSchema = z.object({
   success: z.boolean(),
   status: z.enum(["deleted", "already_deleted"]),
@@ -1341,6 +1345,9 @@ export type CreatePostResponse = z.infer<typeof createPostResponseSchema>;
 export type UpdatePostResponse = z.infer<typeof updatePostResponseSchema>;
 export type RetryPostResponse = z.infer<typeof retryPostResponseSchema>;
 export type DeletePostResponse = z.infer<typeof deletePostResponseSchema>;
+export type FirstCommentActionResponse = z.infer<
+  typeof firstCommentActionResponseSchema
+>;
 export type PublishedDeletionReason = z.infer<
   typeof publishedDeletionReasonSchema
 >;

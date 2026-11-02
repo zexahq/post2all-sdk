@@ -211,38 +211,59 @@ test("generated schemas remain strict and retain dynamic enum validation", () =>
   );
 });
 
-test("public clients reject first comments on every privately rolled-out platform", () => {
-  for (const schema of [
-    twitterSettingsSchema,
-    instagramSettingsSchema,
-    blueskySettingsSchema,
-    wircleSettingsSchema,
-    facebookSettingsSchema,
-    threadsSettingsSchema,
-    youtubeSettingsSchema,
+test("public clients reject first comments on YouTube, the only private platform", () => {
+  assert.throws(() =>
+    youtubeSettingsSchema.parse({ firstComment: "Admin only" }),
+  );
+  assert.throws(() =>
+    youtubeSettingsSchema.parse({ firstCommentDelaySeconds: 0 }),
+  );
+  assert.equal(
+    PUBLIC_PUBLISHING_CONTRACT.platforms.youtube.capability.fields.firstComment,
+    undefined,
+  );
+  assert.equal(
+    PUBLIC_PUBLISHING_CONTRACT.platforms.youtube.capability.fields
+      .firstCommentDelaySeconds,
+    undefined,
+  );
+});
+
+test("public clients can set first comments on every public platform within the contract limits", () => {
+  for (const [platform, schema] of [
+    ["instagram", instagramSettingsSchema],
+    ["facebook", facebookSettingsSchema],
+    ["threads", threadsSettingsSchema],
+    ["twitter", twitterSettingsSchema],
+    ["bluesky", blueskySettingsSchema],
+    ["wircle", wircleSettingsSchema],
   ]) {
-    assert.throws(() => schema.parse({ firstComment: "Admin only" }));
-    assert.throws(() => schema.parse({ firstCommentDelaySeconds: 0 }));
-  }
-  for (const platform of [
-    "twitter",
-    "instagram",
-    "bluesky",
-    "wircle",
-    "facebook",
-    "threads",
-    "youtube",
-  ]) {
-    assert.equal(
+    const field =
       PUBLIC_PUBLISHING_CONTRACT.platforms[platform].capability.fields
-        .firstComment,
-      undefined,
-    );
-    assert.equal(
+        .firstComment;
+    assert.ok(field, `${platform} exposes firstComment`);
+    assert.ok(
       PUBLIC_PUBLISHING_CONTRACT.platforms[platform].capability.fields
         .firstCommentDelaySeconds,
-      undefined,
+      `${platform} exposes firstCommentDelaySeconds`,
     );
+    assert.deepEqual(
+      schema.parse({
+        firstComment: "Link in comments",
+        firstCommentDelaySeconds: 60,
+      }),
+      { firstComment: "Link in comments", firstCommentDelaySeconds: 60 },
+    );
+    assert.throws(() =>
+      schema.parse({ firstComment: "a".repeat(field.maxLength + 1) }),
+    );
+    for (const delay of [-1, 1.5, 86401]) {
+      assert.throws(() =>
+        schema.parse({ firstComment: "Hi", firstCommentDelaySeconds: delay }),
+      );
+    }
+    // A delay without a comment is meaningless.
+    assert.throws(() => schema.parse({ firstCommentDelaySeconds: 60 }));
   }
 });
 
@@ -273,12 +294,15 @@ test("every public settings field is typed from the contract (valid value accept
       assert.ok(field.type, `${platform}.${name} declares a field type`);
       if (field.valueSource === "account_discovery") continue;
       const { valid, wrong } = sampleFor(field);
+      // The delay is only valid alongside a comment.
+      const companion =
+        name === "firstCommentDelaySeconds" ? { firstComment: "Hi" } : {};
       assert.doesNotThrow(
-        () => schema.parse({ [name]: valid }),
+        () => schema.parse({ ...companion, [name]: valid }),
         `${platform}.${name} accepts a ${field.type}`,
       );
       assert.throws(
-        () => schema.parse({ [name]: wrong }),
+        () => schema.parse({ ...companion, [name]: wrong }),
         `${platform}.${name} rejects a wrongly typed value`,
       );
     }

@@ -1427,6 +1427,43 @@ postCommand
     },
   );
 
+for (const action of ["retry", "cancel"] as const) {
+  postCommand
+    .command(`first-comment-${action}`)
+    .description(
+      action === "retry"
+        ? "Retry a first comment whose delivery failed on one post target"
+        : "Cancel a first comment that has not been sent yet on one post target",
+    )
+    .argument("<postId>", "Post ID")
+    .requiredOption(
+      "--post-account-id <id>",
+      "Post target ID from `post get <postId> --json`",
+    )
+    .option("--json", "Output JSON")
+    .action(
+      async (
+        postId: string,
+        options: { postAccountId: string; json?: boolean },
+      ) => {
+        try {
+          const client = await createClient(program.opts<RootOptions>());
+          const response =
+            action === "retry"
+              ? await client.retryFirstComment(postId, options.postAccountId)
+              : await client.cancelFirstComment(postId, options.postAccountId);
+          if (options.json) {
+            console.log(JSON.stringify(response, null, 2));
+            return;
+          }
+          printOutput([response]);
+        } catch (error) {
+          handleError(error);
+        }
+      },
+    );
+}
+
 postCommand
   .command("delete-published")
   .description(
