@@ -2,7 +2,7 @@
 
 All notable changes to the post2all SDK and CLI are documented here.
 
-## Unreleased
+## 0.4.0 - 2026-11-02
 
 ### Added
 
