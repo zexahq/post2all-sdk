@@ -2,6 +2,13 @@
 
 All notable changes to the post2all SDK and CLI are documented here.
 
+## 0.4.1 - Unreleased
+
+### Added
+
+- Instagram and Facebook Stories. Instagram and Facebook settings accept `placement: "feed" | "story"` (default `feed`). A Story publishes one image or video for 24 hours; the generated contract and `getPublishingSchema()` expose its limits as `capability.story.media` and list the settings a Story cannot use in `capability.story.unsupportedFields`. Stories never show the post text.
+- `PUBLIC_PUBLISHING_CONTRACT.version` is now `5`.
+
 ## 0.4.0 - 2026-11-02
 
 ### Added

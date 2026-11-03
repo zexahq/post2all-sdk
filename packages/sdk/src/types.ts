@@ -876,6 +876,14 @@ export const platformCapabilitySchema = z
     text: z.object({ maxLength: z.number() }),
     media: platformMediaCapabilitySchema.optional(),
     fields: z.record(z.string(), platformFieldCapabilitySchema).optional(),
+    /** Present on Instagram and Facebook: limits for `settings.placement: "story"`. */
+    story: z
+      .object({
+        media: platformMediaCapabilitySchema,
+        unsupportedFields: z.array(z.string()),
+        description: z.string(),
+      })
+      .optional(),
   })
   .passthrough();
 

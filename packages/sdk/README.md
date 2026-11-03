@@ -259,6 +259,29 @@ await client.cancelFirstComment("post_abc", "post_account_1");
 
 A comment in `unknown` state cannot be retried automatically; check the platform before resending.
 
+## Instagram and Facebook Stories
+
+Instagram and Facebook targets accept `placement: "story"` to publish one image or video as a 24-hour Story (the default is `"feed"`). Validate the attachment against `capability.story.media` from `getPublishingSchema()` instead of `capability.media`, and omit every setting listed in `capability.story.unsupportedFields` (such as `caption`, `firstComment`, or Instagram Reel options). Stories never show the post text.
+
+```ts
+await client.createPost({
+  media: [{ id: "media_story_9x16" }],
+  targets: [
+    {
+      platform: "instagram",
+      accountId: "acc_instagram_123",
+      settings: { placement: "story" },
+    },
+    {
+      platform: "facebook",
+      accountId: "acc_facebook_123",
+      settings: { placement: "story" },
+    },
+  ],
+  delivery: { mode: "now" },
+});
+```
+
 ## Credit billing and publishing capacity
 
 Organizations manually onboarded onto credit billing can inspect their prepaid access and selected-account rolling publishing capacity:

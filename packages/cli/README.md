@@ -208,6 +208,15 @@ post2all post create \
   --delivery now
 ```
 
+Publish an Instagram or Facebook Story with `settings.placement` set to `"story"`. A Story takes exactly one image or video, checked against `capability.story.media` in `post2all constraints <accountId...> --json`, never shows the post text, and rejects the settings listed in `capability.story.unsupportedFields`.
+
+```bash
+post2all post create \
+  --media '[{"id":"media_story_9x16"}]' \
+  --targets '[{"platform":"instagram","accountId":"acc_instagram_123","settings":{"placement":"story"}}]' \
+  --delivery now
+```
+
 ## Media
 
 ```bash

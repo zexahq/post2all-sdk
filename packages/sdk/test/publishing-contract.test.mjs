@@ -107,7 +107,7 @@ test("generated settings enforce fixed enum values and field limits", () => {
 });
 
 test("generated contract exposes only public published deletion", () => {
-  assert.equal(PUBLIC_PUBLISHING_CONTRACT.version, 4);
+  assert.equal(PUBLIC_PUBLISHING_CONTRACT.version, 5);
   assert.equal(
     PUBLIC_PUBLISHING_CONTRACT.platforms.twitter.publishedDeletion.available,
     true,
@@ -128,6 +128,32 @@ test("generated contract exposes only public published deletion", () => {
     PUBLIC_PUBLISHING_CONTRACT.platforms.tiktok.publishedDeletion.available,
     false,
   );
+});
+
+test("generated contract exposes Instagram and Facebook Stories", () => {
+  const instagram = PUBLIC_PUBLISHING_CONTRACT.platforms.instagram.capability;
+  const facebook = PUBLIC_PUBLISHING_CONTRACT.platforms.facebook.capability;
+
+  assert.equal(instagram.story.media.maxItems, 1);
+  assert.equal(instagram.story.media.maxVideoDurationSeconds, 60);
+  assert.ok(instagram.story.unsupportedFields.includes("trialReel"));
+  assert.ok(!instagram.story.unsupportedFields.includes("altText"));
+  assert.equal(facebook.story.media.minVideoHeight, 960);
+  assert.ok(facebook.story.unsupportedFields.includes("linkUrl"));
+  assert.equal(
+    PUBLIC_PUBLISHING_CONTRACT.platforms.twitter.capability.story,
+    undefined,
+  );
+  assert.equal(
+    instagramSettingsSchema.parse({ placement: "story" }).placement,
+    "story",
+  );
+  assert.equal(
+    facebookSettingsSchema.parse({ placement: "feed" }).placement,
+    "feed",
+  );
+  assert.throws(() => instagramSettingsSchema.parse({ placement: "reel" }));
+  assert.throws(() => twitterSettingsSchema.parse({ placement: "story" }));
 });
 
 test("generated contract exposes public account connection metadata", () => {
