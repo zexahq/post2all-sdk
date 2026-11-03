@@ -37,6 +37,7 @@ import {
   type PublishingSchemaResponse,
   publishingSchemaResponseSchema,
   type PublishingOptionsResponse,
+  type PublishingOptionsSearches,
   publishingOptionsResponseSchema,
   type CreditBillingResponse,
   creditBillingResponseSchema,
@@ -498,8 +499,13 @@ export class Post2allClient {
     return this.parseJson(response, getAccountPublishingOptionsResponseSchema);
   }
 
+  /**
+   * Account-dependent publishing values. Pass `searches.reelAudioSearch` to look up Instagram
+   * Reel audio for accounts whose publishing schema lists the `reelAudio` lookup.
+   */
   public async getPublishingOptions(
     accountIds: string[],
+    searches: PublishingOptionsSearches = {},
   ): Promise<PublishingOptionsResponse> {
     if (accountIds.length === 0) {
       throw new Post2allApiError("At least one accountId is required", {
@@ -510,7 +516,12 @@ export class Post2allClient {
     const response = await this.request("/publishing-options", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ accountIds }),
+      body: JSON.stringify({
+        accountIds,
+        ...(searches.reelAudioSearch
+          ? { reelAudioSearch: searches.reelAudioSearch }
+          : {}),
+      }),
     });
     return this.parseJson(response, publishingOptionsResponseSchema);
   }

@@ -11,6 +11,7 @@ import {
   platformSchema,
   postMediaInputSchema,
   postTargetsSchema,
+  reelAudioTypeSchema,
   type AccountAnalyticsInput,
   type AccountAnalyticsPostsInput,
   type ApiErrorBody,
@@ -18,6 +19,7 @@ import {
   type Delivery,
   type PostTarget,
   type Platform,
+  type ReelAudioSearch,
   type UpdatePostInput,
   type RetryPostInput,
 } from "@post2all/sdk";
@@ -1012,30 +1014,82 @@ accountCommand
     "Get platform capabilities and account-specific publishing choices",
   )
   .argument("<accountIds...>", "One or more social account IDs")
+  .option(
+    "--audio-search [query]",
+    "Search Instagram Reel audio (accounts with the reelAudio lookup); omit the query for trending audio",
+  )
+  .option(
+    "--audio-type <type>",
+    "Reel audio catalog: music (default) or original_sound",
+  )
   .option("--json", "Output JSON")
-  .action(async (accountIds: string[], options: { json?: boolean }) => {
-    try {
-      const client = await createClient(program.opts<RootOptions>());
-      const response = await client.getPublishingOptions(accountIds);
+  .action(
+    async (
+      accountIds: string[],
+      options: {
+        json?: boolean;
+        audioSearch?: string | boolean;
+        audioType?: string;
+      },
+    ) => {
+      try {
+        if (
+          options.audioType !== undefined &&
+          !reelAudioTypeSchema.safeParse(options.audioType).success
+        ) {
+          throw new Error("--audio-type must be music or original_sound");
+        }
+        const searchAudio =
+          options.audioSearch !== undefined || options.audioType !== undefined;
+        const client = await createClient(program.opts<RootOptions>());
+        const reelAudioSearch: ReelAudioSearch = {
+          ...(typeof options.audioSearch === "string"
+            ? { query: options.audioSearch }
+            : {}),
+          ...(options.audioType
+            ? { audioType: options.audioType as ReelAudioSearch["audioType"] }
+            : {}),
+        };
+        const response = await client.getPublishingOptions(
+          accountIds,
+          searchAudio ? { reelAudioSearch } : {},
+        );
 
-      if (options.json) {
-        console.log(JSON.stringify(response, null, 2));
-        return;
+        if (options.json) {
+          console.log(JSON.stringify(response, null, 2));
+          return;
+        }
+
+        printOutput(
+          response.accounts.map((account) => ({
+            accountId: account.accountId,
+            platform: account.platform,
+            boards: account.boards?.length ?? 0,
+            destinations: account.destinations?.length ?? 0,
+            creatorInfo: account.creatorInfo ? "available" : "none",
+            ...(searchAudio
+              ? { reelAudio: account.reelAudio?.length ?? 0 }
+              : {}),
+          })),
+        );
+        const tracks = response.accounts.flatMap((account) =>
+          (account.reelAudio ?? []).map((track) => ({
+            accountId: account.accountId,
+            reelAudioId: track.id,
+            title: track.title,
+            artist: track.artist ?? "",
+            seconds:
+              track.durationMs === null
+                ? ""
+                : Math.round(track.durationMs / 1000),
+          })),
+        );
+        if (tracks.length > 0) printOutput(tracks);
+      } catch (error) {
+        handleError(error);
       }
-
-      printOutput(
-        response.accounts.map((account) => ({
-          accountId: account.accountId,
-          platform: account.platform,
-          boards: account.boards?.length ?? 0,
-          destinations: account.destinations?.length ?? 0,
-          creatorInfo: account.creatorInfo ? "available" : "none",
-        })),
-      );
-    } catch (error) {
-      handleError(error);
-    }
-  });
+    },
+  );
 
 accountCommand
   .command("analytics")

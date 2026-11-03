@@ -818,3 +818,80 @@ test("uploadMediaFromUrl imports a remote file into managed post2all storage", a
   });
   assert.equal(response.media.id, "media_1");
 });
+
+test("publishing options send the Reel audio search and parse the audio lookup", async () => {
+  let body;
+  const client = new Post2allClient({
+    apiKey: "amp_test",
+    baseUrl: "https://example.test/api/v1",
+    fetchImplementation: async (_url, init) => {
+      body = JSON.parse(String(init?.body));
+      return Response.json({
+        accounts: [
+          {
+            accountId: "acc_1",
+            platform: "instagram",
+            reelAudio: [
+              {
+                id: "587784541076604",
+                title: "Song",
+                artist: "Artist",
+                imageUrl: null,
+                durationMs: 30500,
+                previewUrl: null,
+              },
+            ],
+          },
+        ],
+      });
+    },
+  });
+
+  const response = await client.getPublishingOptions(["acc_1"], {
+    reelAudioSearch: { query: "lofi", audioType: "music" },
+  });
+  assert.deepEqual(body, {
+    accountIds: ["acc_1"],
+    reelAudioSearch: { query: "lofi", audioType: "music" },
+  });
+  assert.equal(response.accounts[0].reelAudio[0].id, "587784541076604");
+
+  await client.getPublishingOptions(["acc_1"]);
+  assert.deepEqual(body, { accountIds: ["acc_1"] });
+});
+
+test("publishing schema tolerates discovery and lookup keys added by newer APIs", async () => {
+  const client = new Post2allClient({
+    apiKey: "amp_test",
+    baseUrl: "https://example.test/api/v1",
+    fetchImplementation: async () =>
+      Response.json({
+        guide: { workflow: "w", media: "m", accountOptions: "o" },
+        accounts: [
+          {
+            accountId: "acc_1",
+            platform: "instagram",
+            name: "Instagram",
+            capability: {
+              postTypes: { text: false, image: true, video: true },
+              text: { maxLength: 2200 },
+              media: { description: "media" },
+              fields: {
+                reelAudioId: { type: "text", lookup: "reelAudio" },
+                future: { discoveryKey: "futureKey", lookup: "futureLookup" },
+              },
+            },
+            discoveries: ["futureKey"],
+            lookups: ["reelAudio", "futureLookup"],
+          },
+        ],
+      }),
+  });
+
+  const response = await client.getPublishingSchema(["acc_1"]);
+  assert.deepEqual(response.accounts[0].lookups, ["reelAudio", "futureLookup"]);
+  assert.equal(
+    response.accounts[0].capability.fields.reelAudioId.lookup,
+    "reelAudio",
+  );
+});

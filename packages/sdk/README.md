@@ -199,6 +199,19 @@ console.log(options.accounts[0]?.destinations);
 console.log(options.accounts[0]?.boards);
 ```
 
+Instagram accounts connected through Facebook list the `reelAudio` lookup in their publishing schema (`lookups: ["reelAudio"]`, and `reelAudioId` carries `lookup: "reelAudio"`). Search audio through the same call; omit `query` for trending audio:
+
+```ts
+const audio = await client.getPublishingOptions(["acc_instagram"], {
+  reelAudioSearch: { query: "lofi", audioType: "music" },
+});
+const track = audio.accounts[0]?.reelAudio?.[0];
+// settings for a single-video Reel:
+// { reelAudioId: track.id, reelAudioVolume: 80, reelVideoVolume: 20 }
+```
+
+Instagram `collaborators` takes up to 3 usernames to invite as co-authors on feed images, Reels, and carousels. Facebook video posts accept an optional `title`. Accounts connected through Instagram Login cannot add Reel audio; a post that sets it is rejected.
+
 `capability` is the authoritative, account-specific constraint set. Read it before composing or validating a post instead of hard-coding platform limits. For example, an X account's `capability.text.maxLength` reflects whether that account is Free, Basic, Premium, or Premium+.
 
 Do not send a fixed post type. Composition is inferred from attached media. Mixed image/video is allowed only when platform `media.allowMixedMedia` is true. When `capability.media.altText` is present, each attached media item may include its own `altText`; use the returned media types and maximum length. X intentionally does not expose media alt text.
@@ -448,7 +461,7 @@ const { media } = await client.uploadMediaFromUrl(
 - `getAccountAnalytics(accountId, input?)`
 - `listAccountAnalyticsPosts(accountId, input?)`
 - `getPublishingSchema(accountIds)`
-- `getPublishingOptions(accountIds)`
+- `getPublishingOptions(accountIds, searches?)`
 - `getAccountPublishingOptions(accountId)` (compatibility)
 - `getBilling()` (credit-based organizations only)
 - `getXApiPricing()` (credit-based organizations only)

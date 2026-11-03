@@ -48,9 +48,11 @@ post2all account profile acc_123 --clear
 post2all constraints <accountId...> --json
 post2all accounts --json
 post2all account publishing-options acc_discord_123 --json
+post2all account publishing-options acc_instagram --audio-search lofi
+post2all account publishing-options acc_instagram --audio-search --audio-type original_sound
 ```
 
-Call `constraints` once before composing to load every platform limit and connected-account text override. Use the returned account ID and platform when constructing targets. Per-account publishing options are only needed for dynamic choices such as Discord channels and TikTok privacy levels.
+Call `constraints` once before composing to load every platform limit and connected-account text override. Use the returned account ID and platform when constructing targets. Per-account publishing options are only needed for dynamic choices such as Discord channels and TikTok privacy levels, or for lookups such as Instagram Reel audio: `--audio-search [query]` lists tracks (trending without a query) for accounts connected through Facebook, and the returned `reelAudioId` goes in the target settings of a single-video Reel.
 
 Treat publishing options as the source of truth for text, media, and field constraints. Limits can be account-specific—for example, X paid tiers receive a different text limit. Do not pass `--type`. Composition is inferred from attached media; mixed image/video is allowed only when platform `media.allowMixedMedia` is true. When `capability.media.altText` is present, use `--media` to set optional alt text on each media item. X intentionally does not expose that capability.
 

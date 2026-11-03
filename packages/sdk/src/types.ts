@@ -816,6 +816,16 @@ export const postAnalyticsResponseSchema = z.object({
   targets: z.array(postAnalyticsTargetSchema),
 });
 
+/**
+ * Discovery and lookup keys stay open strings at runtime so a newer API never breaks an older
+ * SDK; the known keys keep their literal types for autocomplete.
+ */
+const discoveryKeySchema = z.union([
+  z.enum(["destinations", "boards", "creatorInfo"]),
+  z.string(),
+]);
+const lookupKeySchema = z.union([z.enum(["reelAudio"]), z.string()]);
+
 const platformFieldCapabilitySchema = z
   .object({
     enabled: z.boolean().optional(),
@@ -835,7 +845,9 @@ const platformFieldCapabilitySchema = z
     options: z
       .array(z.object({ value: z.string(), label: z.string() }))
       .optional(),
-    discoveryKey: z.enum(["destinations", "boards", "creatorInfo"]).optional(),
+    discoveryKey: discoveryKeySchema.optional(),
+    /** Fill this field from the matching publishing-options lookup (for example reelAudio). */
+    lookup: lookupKeySchema.optional(),
     defaultValue: z.union([z.string(), z.boolean(), z.number()]).optional(),
   })
   .passthrough();
@@ -922,6 +934,24 @@ export const getAccountPublishingOptionsResponseSchema = z.object({
   creatorInfo: tiktokCreatorInfoSchema.optional(),
 });
 
+export const reelAudioTypeSchema = z.enum(["music", "original_sound"]);
+
+/** Searches Instagram audio for Reels; no query returns trending audio. */
+export const reelAudioSearchSchema = z.object({
+  query: z.string().trim().max(100).optional(),
+  audioType: reelAudioTypeSchema.optional(),
+});
+
+export const reelAudioOptionSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  artist: z.string().nullable(),
+  imageUrl: z.string().nullable(),
+  durationMs: z.number().nullable(),
+  /** Temporary preview file; Meta expires it after about 1.5 days. */
+  previewUrl: z.string().nullable(),
+});
+
 export const publishingOptionsResponseSchema = z.object({
   accounts: z.array(
     z.object({
@@ -930,6 +960,8 @@ export const publishingOptionsResponseSchema = z.object({
       boards: z.array(pinterestBoardSchema).optional(),
       destinations: z.array(platformDestinationSchema).optional(),
       creatorInfo: tiktokCreatorInfoSchema.optional(),
+      /** Present when reelAudioSearch was sent and the account has the reelAudio lookup. */
+      reelAudio: z.array(reelAudioOptionSchema).optional(),
     }),
   ),
 });
@@ -949,7 +981,9 @@ export const publishingSchemaResponseSchema = z.object({
       firstComment: z
         .object({ available: z.boolean(), reason: z.string().nullable() })
         .optional(),
-      discoveries: z.array(z.enum(["destinations", "boards", "creatorInfo"])),
+      discoveries: z.array(discoveryKeySchema),
+      /** Search-backed lookups; request them through getPublishingOptions searches. */
+      lookups: z.array(lookupKeySchema).optional(),
     }),
   ),
 });
@@ -1332,6 +1366,9 @@ export type GetAccountPublishingOptionsResponse = z.infer<
 export type PublishingOptionsResponse = z.infer<
   typeof publishingOptionsResponseSchema
 >;
+export type ReelAudioSearch = z.infer<typeof reelAudioSearchSchema>;
+export type ReelAudioOption = z.infer<typeof reelAudioOptionSchema>;
+export type PublishingOptionsSearches = { reelAudioSearch?: ReelAudioSearch };
 export type PublishingSchemaResponse = z.infer<
   typeof publishingSchemaResponseSchema
 >;
