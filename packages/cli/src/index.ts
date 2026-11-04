@@ -8,6 +8,7 @@ import {
   Post2allApiError,
   Post2allClient,
   analyticsSortBySchema,
+  instagramConnectionMethodSchema,
   platformSchema,
   postMediaInputSchema,
   postTargetsSchema,
@@ -122,6 +123,7 @@ type PostAnalyticsOptions = {
 type AccountConnectionOptions = {
   redirectUrl?: string;
   handle?: string;
+  connectionMethod?: string;
   apiKey?: string;
   profileHandle?: string;
   json?: boolean;
@@ -375,11 +377,22 @@ function accountConnectionInput(
 
   if (platform === "telegram") return {};
 
+  if (options.connectionMethod !== undefined && platform !== "instagram") {
+    throw new Error("--connection-method is only supported for Instagram");
+  }
+
   return {
     ...(options.redirectUrl !== undefined
       ? { redirectUrl: options.redirectUrl }
       : {}),
     ...(options.handle !== undefined ? { handle: options.handle } : {}),
+    ...(options.connectionMethod !== undefined
+      ? {
+          connectionMethod: instagramConnectionMethodSchema.parse(
+            options.connectionMethod,
+          ),
+        }
+      : {}),
   };
 }
 
@@ -861,6 +874,10 @@ accountCommand
   .option(
     "--handle <handle>",
     "Bluesky handle or authorization server; Mastodon server or you@server",
+  )
+  .option(
+    "--connection-method <method>",
+    "Instagram only: instagram_login (default) or facebook_login",
   )
   .option(
     "--api-key <key>",

@@ -2,6 +2,13 @@
 
 All notable changes to the post2all SDK and CLI are documented here.
 
+## 0.4.3 - 2026-11-04
+
+### Added
+
+- Instagram through Facebook Login in headless connections. `connectAccount("instagram", { connectionMethod: "facebook_login" })` and `post2all account connect instagram --connection-method facebook_login` sign the end user in with Facebook and connect every eligible Instagram professional account linked to the Facebook Pages they manage, which is the method that unlocks Reel audio. The default `instagram_login` connects one account directly, as before. Reconnects keep the account's existing method, so Instagram accounts connected through Facebook Login can now also be reconnected from the API, SDK, and CLI.
+- `listAccountPlatforms()` reports Instagram's selectable methods under `connectionMethods`; the `instagramConnectionMethodSchema` export and `InstagramConnectionMethod` type are derived from the generated contract.
+
 ## 0.4.1 - Unreleased
 
 ### Added

@@ -102,6 +102,14 @@ post2all account disconnect <accountId>
 
 Telegram prints a bot username and short-lived connection code instead of an OAuth URL. Wircle uses `--api-key` and `--profile-handle`.
 
+Instagram offers two sign-in methods. The default signs the user in with Instagram and connects one professional account. `--connection-method facebook_login` signs the user in with Facebook and connects every eligible Instagram professional account linked to the Facebook Pages they manage, which is also what unlocks Reel audio. Reconnects keep the account's existing method.
+
+```bash
+post2all account connect instagram \
+  --connection-method facebook_login \
+  --redirect-url https://app.example.com/settings/social/complete
+```
+
 Mastodon accounts live on independent servers, so pass the account handle (or just the server, such as `mastodon.social`) with `--handle`. The same flag works with `account reconnect`:
 
 ```bash

@@ -401,6 +401,43 @@ test("connectAccount starts a headless OAuth connection with caller redirect", a
   assert.equal(result.connectionId, "conn-1");
 });
 
+test("connectAccount sends the Instagram connection method and rejects it elsewhere", async () => {
+  const bodies = [];
+  const client = new Post2allClient({
+    apiKey: "amp_test",
+    baseUrl: "https://example.test/api/v1",
+    fetchImplementation: async (_url, init) => {
+      bodies.push(JSON.parse(init?.body));
+      return Response.json({
+        type: "oauth",
+        connectionId: "conn-fb",
+        authorizationUrl: "https://www.facebook.com/v25.0/dialog/oauth?state=conn-fb",
+        expiresAt: "2026-09-12T13:15:00.000Z",
+      });
+    },
+  });
+
+  const result = await client.connectAccount("instagram", {
+    connectionMethod: "facebook_login",
+    redirectUrl: "https://client.example/social/callback",
+  });
+  assert.equal(result.connectionId, "conn-fb");
+  assert.deepEqual(bodies, [
+    {
+      connectionMethod: "facebook_login",
+      redirectUrl: "https://client.example/social/callback",
+    },
+  ]);
+
+  await assert.rejects(() =>
+    client.connectAccount("instagram", { connectionMethod: "tiktok_login" }),
+  );
+  await assert.rejects(() =>
+    client.connectAccount("facebook", { connectionMethod: "facebook_login" }),
+  );
+  assert.equal(bodies.length, 1);
+});
+
 test("connectAccount validates Wircle credentials before making a request", async () => {
   let requests = 0;
   const client = new Post2allClient({

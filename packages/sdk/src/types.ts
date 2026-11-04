@@ -517,6 +517,19 @@ const oauthAccountConnectInputSchema = z
   })
   .strict();
 
+export const instagramConnectionMethodSchema = z.enum(
+  publicAccountConnectionContract.platforms.instagram.connectionMethods,
+);
+export type InstagramConnectionMethod = z.infer<
+  typeof instagramConnectionMethodSchema
+>;
+
+const instagramAccountConnectInputSchema = oauthAccountConnectInputSchema.extend(
+  {
+    connectionMethod: instagramConnectionMethodSchema.optional(),
+  },
+);
+
 const telegramAccountConnectInputSchema = z.object({}).strict();
 const wircleAccountConnectInputSchema = z
   .object({ credentials: wircleAccountCredentialsSchema })
@@ -525,6 +538,7 @@ const wircleAccountConnectInputSchema = z
 export function accountConnectInputSchema(platform: Platform) {
   if (platform === "telegram") return telegramAccountConnectInputSchema;
   if (platform === "wircle") return wircleAccountConnectInputSchema;
+  if (platform === "instagram") return instagramAccountConnectInputSchema;
   return oauthAccountConnectInputSchema;
 }
 
@@ -545,6 +559,7 @@ export const accountPlatformSchema = z.object({
   canConnect: z.boolean(),
   supportsReconnect: z.boolean(),
   requiresBrowser: z.boolean(),
+  connectionMethods: z.array(instagramConnectionMethodSchema).optional(),
 });
 
 export const accountPlatformsResponseSchema = z.object({
@@ -1415,6 +1430,12 @@ export type ConnectAccountInput = {
   redirectUrl?: string;
   /** Bluesky handle or authorization server; required for Mastodon as the server or `you@server`. */
   handle?: string;
+  /**
+   * Instagram only. `instagram_login` (default) connects one professional account directly;
+   * `facebook_login` signs in with Facebook and connects every eligible Instagram professional
+   * account linked to the Pages the user manages. Reconnects keep the account's existing method.
+   */
+  connectionMethod?: InstagramConnectionMethod;
   credentials?: z.input<typeof wircleAccountCredentialsSchema>;
 };
 export type ReconnectAccountInput = z.input<typeof accountReconnectInputSchema>;

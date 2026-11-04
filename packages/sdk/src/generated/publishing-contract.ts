@@ -1773,6 +1773,7 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
         connectionType: "oauth",
         supportsReconnect: true,
         requiresBrowser: true,
+        connectionMethods: ["instagram_login", "facebook_login"],
       },
       facebook: {
         name: "Facebook",

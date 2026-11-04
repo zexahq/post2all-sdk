@@ -81,6 +81,8 @@ if (connection.status === "connected") {
 
 Never expose your post2all API key in browser code. The browser redirect is a UX handoff; use `getAccountConnection()` server-side before trusting the result.
 
+Instagram also accepts `connectionMethod: "facebook_login"`, which signs the user in with Facebook and connects every eligible Instagram professional account linked to the Facebook Pages they manage (the method that unlocks Reel audio). The default, `instagram_login`, connects one account directly.
+
 Reconnect the exact provider identity later if credentials expire or scopes change:
 
 ```ts
