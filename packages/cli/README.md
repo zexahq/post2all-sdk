@@ -290,6 +290,27 @@ post2all post first-comment-cancel post_abc --post-account-id post_account_1
 
 Draft, scheduled, failed, and partially failed posts can be updated while retained media is available. Arrays supplied to update replace their previous values.
 
+## Comment automations (auto DM)
+
+Answer new comments on an existing Instagram post (published through post2all or not) with one private DM per comment and/or a public reply:
+
+```bash
+post2all automation create --account acc_instagram_123 \
+  --post-url https://www.instagram.com/p/ABC123/ \
+  --keyword guide --keyword link --match-type contains \
+  --dm "Here is the guide: https://example.com/guide" \
+  --public-reply "Sent you a DM" --json
+
+post2all automation list --account acc_instagram_123
+post2all automation get <automationId>          # rules, 7-day stats, recent deliveries
+post2all automation update <automationId> --disable
+post2all automation update <automationId> --enable --exclude spam
+post2all automation deliveries <automationId> --limit 50 --json
+post2all automation delete <automationId>
+```
+
+`--post-id` takes the Instagram post id directly; `--post-url` is resolved by paging the account's post listing back about two years. Settings flags map to the `instagramCommentHook*` fields (`--keyword`, `--exclude`, `--match-mode any|keywords`, `--match-type`, `--dm`/`--no-dm`, `--public-reply`/`--no-public-reply`); the API validates them. Instagram allows one DM per comment, within 7 days of the comment.
+
 ## Main flags
 
 | Flag                   | Description                                                                                     |

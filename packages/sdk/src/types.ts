@@ -524,11 +524,10 @@ export type InstagramConnectionMethod = z.infer<
   typeof instagramConnectionMethodSchema
 >;
 
-const instagramAccountConnectInputSchema = oauthAccountConnectInputSchema.extend(
-  {
+const instagramAccountConnectInputSchema =
+  oauthAccountConnectInputSchema.extend({
     connectionMethod: instagramConnectionMethodSchema.optional(),
-  },
-);
+  });
 
 const telegramAccountConnectInputSchema = z.object({}).strict();
 const wircleAccountConnectInputSchema = z
@@ -676,6 +675,13 @@ const analyticsDateStringSchema = z
       !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
     );
   }, "Invalid calendar date");
+
+/** Public analytics request limits (one listing covers at most `maxRangeDays`). */
+export const ANALYTICS_LIMITS = {
+  defaultRangeDays: publicAnalyticsContract.defaultRangeDays,
+  maxRangeDays: publicAnalyticsContract.maxRangeDays,
+  maxPostsPageSize: publicAnalyticsContract.maxPostsPageSize,
+} as const;
 
 export const analyticsSortBySchema = z.enum(publicAnalyticsContract.sortBy);
 
@@ -893,6 +899,11 @@ const platformMediaCapabilitySchema = z
   })
   .passthrough();
 
+export const commentAutomationCapabilitySchema = z.object({
+  available: z.boolean(),
+  reply: z.array(z.string()),
+});
+
 export const platformCapabilitySchema = z
   .object({
     postTypes: z.object({
@@ -903,6 +914,8 @@ export const platformCapabilitySchema = z
     text: z.object({ maxLength: z.number() }),
     media: platformMediaCapabilitySchema.optional(),
     fields: z.record(z.string(), platformFieldCapabilitySchema).optional(),
+    /** Comment automations (comment → DM and/or public reply); `available` on Instagram. */
+    commentAutomation: commentAutomationCapabilitySchema.optional(),
     /** Present on Instagram and Facebook: limits for `settings.placement: "story"`. */
     story: z
       .object({
@@ -1469,3 +1482,227 @@ export type ApiErrorBody = {
     issues?: ApiValidationIssue[];
   };
 };
+
+// ─── Comment automations ─────────────────────────────────────────────────────
+
+/** Rule fields a comment automation accepts: the Instagram `instagramCommentHook*` settings. */
+export const COMMENT_AUTOMATION_SETTINGS_KEYS = [
+  "instagramCommentHookMatchMode",
+  "instagramCommentHookKeywords",
+  "instagramCommentHookExcludeKeywords",
+  "instagramCommentHookMatchType",
+  "instagramCommentHookReplyMessage",
+  "instagramCommentHookDmEnabled",
+  "instagramCommentHookPublicReplyEnabled",
+  "instagramCommentHookPublicReplyMessage",
+] as const;
+export type CommentAutomationSettingsKey =
+  (typeof COMMENT_AUTOMATION_SETTINGS_KEYS)[number];
+
+/** Static comment automation support per platform, from the generated contract. */
+export function getCommentAutomationCapability(
+  platform: Platform,
+): z.infer<typeof commentAutomationCapabilitySchema> {
+  const capability = PUBLIC_PUBLISHING_CONTRACT.platforms[platform]
+    .capability as {
+    commentAutomation?: { available: boolean; reply: readonly string[] };
+  };
+  return {
+    available: capability.commentAutomation?.available ?? false,
+    reply: [...(capability.commentAutomation?.reply ?? [])],
+  };
+}
+
+export type CommentAutomationSettingsInput = Pick<
+  InstagramSettings,
+  CommentAutomationSettingsKey
+>;
+
+const instagramContractFields = PUBLIC_PUBLISHING_CONTRACT.platforms.instagram
+  .capability.fields as Record<string, GeneratedField>;
+
+/** Built from the generated Instagram field limits; never hand-written. */
+export const commentAutomationSettingsInputSchema = z
+  .object(
+    Object.fromEntries(
+      COMMENT_AUTOMATION_SETTINGS_KEYS.map((key) => {
+        const config = instagramContractFields[key];
+        if (!config) throw new Error(`Generated contract is missing ${key}`);
+        return [key, buildGeneratedFieldSchema(key, config)];
+      }),
+    ),
+  )
+  .strict() as unknown as z.ZodType<CommentAutomationSettingsInput>;
+
+export const commentAutomationStatusSchema = z.enum([
+  "on",
+  "paused",
+  "needs_attention",
+  "waiting",
+]);
+
+const commentAutomationCursorSchema = z.string().min(1).max(512);
+const commentAutomationLimitSchema = z.number().int().min(1).max(100);
+
+export const listCommentAutomationsInputSchema = z
+  .object({
+    accountId: z.string().min(1).optional(),
+    enabled: z.boolean().optional(),
+    status: commentAutomationStatusSchema.optional(),
+    cursor: commentAutomationCursorSchema.optional(),
+    limit: commentAutomationLimitSchema.optional(),
+  })
+  .strict();
+
+export const createCommentAutomationInputSchema = z
+  .object({
+    accountId: z.string().min(1),
+    /** The id Instagram assigned to the post. */
+    platformPostId: z.string().trim().min(1),
+    settings: commentAutomationSettingsInputSchema,
+  })
+  .strict();
+
+export const updateCommentAutomationInputSchema = z
+  .object({
+    settings: commentAutomationSettingsInputSchema.optional(),
+    /** `false` pauses; `true` turns it back on. */
+    enabled: z.boolean().optional(),
+  })
+  .strict()
+  .refine(
+    (value) => value.settings !== undefined || value.enabled !== undefined,
+    { message: "Send settings, enabled, or both." },
+  );
+
+export const listCommentAutomationDeliveriesInputSchema = z
+  .object({
+    cursor: commentAutomationCursorSchema.optional(),
+    limit: commentAutomationLimitSchema.optional(),
+  })
+  .strict();
+
+export const commentAutomationSettingsSchema = z.object({
+  instagramCommentHookMatchMode: z.string(),
+  instagramCommentHookKeywords: z.array(z.string()),
+  instagramCommentHookExcludeKeywords: z.array(z.string()),
+  instagramCommentHookMatchType: z.string(),
+  instagramCommentHookReplyMessage: z.string(),
+  instagramCommentHookDmEnabled: z.boolean(),
+  instagramCommentHookPublicReplyEnabled: z.boolean(),
+  instagramCommentHookPublicReplyMessage: z.string().nullable(),
+});
+
+export const commentAutomationSchema = z.object({
+  id: z.string(),
+  platform: platformSchema,
+  /** `on`, `paused` (by you), `needs_attention` (paused by post2all, see `pausedReason`), or `waiting` (post not published yet). */
+  status: commentAutomationStatusSchema,
+  enabled: z.boolean(),
+  pausedReason: z.string().nullable(),
+  source: z.string(),
+  account: z.object({
+    id: z.string().nullable(),
+    username: z.string().nullable(),
+    displayName: z.string().nullable(),
+    avatarUrl: z.string().nullable(),
+    status: z.string().nullable(),
+  }),
+  post: z.object({
+    platformPostId: z.string().nullable(),
+    url: z.string().nullable(),
+    origin: z.enum(["post2all", "instagram"]),
+    publishedAt: z.string().nullable(),
+    caption: z.string().nullable(),
+    mediaType: z.string().nullable(),
+    thumbnailUrl: z.string().nullable(),
+    postId: z.string().nullable(),
+    postAccountId: z.string().nullable(),
+  }),
+  settings: commentAutomationSettingsSchema,
+  stats: z.object({
+    sent7d: z.number(),
+    failed7d: z.number(),
+    skipped7d: z.number(),
+    lastDeliveryAt: z.string().nullable(),
+  }),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export const commentAutomationDeliverySchema = z.object({
+  id: z.string(),
+  commentId: z.string(),
+  commenterUsername: z.string().nullable(),
+  commentText: z.string(),
+  status: z.enum(["queued", "processing", "sent", "failed", "skipped"]),
+  error: z.string().nullable(),
+  dmSent: z.boolean(),
+  publicReplySent: z.boolean(),
+  publicReplyError: z.string().nullable(),
+  createdAt: z.string(),
+});
+
+const commentAutomationPaginationSchema = z.object({
+  hasMore: z.boolean(),
+  nextCursor: z.string().nullable(),
+});
+
+export const listCommentAutomationsResponseSchema = z.object({
+  automations: z.array(commentAutomationSchema),
+  pagination: commentAutomationPaginationSchema,
+});
+export const getCommentAutomationResponseSchema = z.object({
+  automation: commentAutomationSchema,
+});
+export const updateCommentAutomationResponseSchema = z.object({
+  automation: commentAutomationSchema,
+  warnings: z.array(z.string()),
+});
+export const createCommentAutomationResponseSchema =
+  updateCommentAutomationResponseSchema.extend({ created: z.boolean() });
+export const deleteCommentAutomationResponseSchema = z.object({
+  success: z.literal(true),
+});
+export const listCommentAutomationDeliveriesResponseSchema = z.object({
+  deliveries: z.array(commentAutomationDeliverySchema),
+  pagination: commentAutomationPaginationSchema,
+});
+
+export type CommentAutomationStatus = z.infer<
+  typeof commentAutomationStatusSchema
+>;
+export type CommentAutomation = z.infer<typeof commentAutomationSchema>;
+export type CommentAutomationDelivery = z.infer<
+  typeof commentAutomationDeliverySchema
+>;
+export type ListCommentAutomationsInput = z.input<
+  typeof listCommentAutomationsInputSchema
+>;
+export type CreateCommentAutomationInput = z.input<
+  typeof createCommentAutomationInputSchema
+>;
+export type UpdateCommentAutomationInput = z.input<
+  typeof updateCommentAutomationInputSchema
+>;
+export type ListCommentAutomationDeliveriesInput = z.input<
+  typeof listCommentAutomationDeliveriesInputSchema
+>;
+export type ListCommentAutomationsResponse = z.infer<
+  typeof listCommentAutomationsResponseSchema
+>;
+export type GetCommentAutomationResponse = z.infer<
+  typeof getCommentAutomationResponseSchema
+>;
+export type CreateCommentAutomationResponse = z.infer<
+  typeof createCommentAutomationResponseSchema
+>;
+export type UpdateCommentAutomationResponse = z.infer<
+  typeof updateCommentAutomationResponseSchema
+>;
+export type DeleteCommentAutomationResponse = z.infer<
+  typeof deleteCommentAutomationResponseSchema
+>;
+export type ListCommentAutomationDeliveriesResponse = z.infer<
+  typeof listCommentAutomationDeliveriesResponseSchema
+>;

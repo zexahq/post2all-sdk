@@ -2,6 +2,14 @@
 
 All notable changes to the post2all SDK and CLI are documented here.
 
+## 0.5.0 - Unreleased
+
+### Added
+
+- Comment automations on existing Instagram posts, including posts not published through post2all: `listCommentAutomations`, `createCommentAutomation`, `getCommentAutomation`, `updateCommentAutomation` (rules and/or `enabled` to pause or resume), `deleteCommentAutomation`, and `listCommentAutomationDeliveries`, plus the `post2all automation list|get|create|update|delete|deliveries` CLI commands. `automation create --post-url` resolves an Instagram link through the account's post listing.
+- `commentAutomationSettingsInputSchema` is built from the generated Instagram `instagramCommentHook*` fields; `getCommentAutomationCapability(platform)` and `capability.commentAutomation` expose the static `{ available, reply }` support.
+- `ANALYTICS_LIMITS` exposes the public analytics range and page-size limits from the generated contract.
+
 ## 0.4.3 - 2026-11-04
 
 ### Added

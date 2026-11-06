@@ -411,7 +411,8 @@ test("connectAccount sends the Instagram connection method and rejects it elsewh
       return Response.json({
         type: "oauth",
         connectionId: "conn-fb",
-        authorizationUrl: "https://www.facebook.com/v25.0/dialog/oauth?state=conn-fb",
+        authorizationUrl:
+          "https://www.facebook.com/v25.0/dialog/oauth?state=conn-fb",
         expiresAt: "2026-09-12T13:15:00.000Z",
       });
     },
@@ -931,4 +932,214 @@ test("publishing schema tolerates discovery and lookup keys added by newer APIs"
     response.accounts[0].capability.fields.reelAudioId.lookup,
     "reelAudio",
   );
+});
+
+function commentAutomationFixture(overrides = {}) {
+  return {
+    id: "automation-1",
+    platform: "instagram",
+    status: "on",
+    enabled: true,
+    pausedReason: null,
+    source: "api",
+    account: {
+      id: "account-1",
+      username: "creator",
+      displayName: "Creator",
+      avatarUrl: null,
+      status: "active",
+    },
+    post: {
+      platformPostId: "17890000000000001",
+      url: "https://www.instagram.com/p/abc/",
+      origin: "instagram",
+      publishedAt: "2026-10-01T00:00:00.000Z",
+      caption: "Comment GUIDE",
+      mediaType: "image",
+      thumbnailUrl: null,
+      postId: null,
+      postAccountId: null,
+    },
+    settings: {
+      instagramCommentHookMatchMode: "keywords",
+      instagramCommentHookKeywords: ["guide"],
+      instagramCommentHookExcludeKeywords: [],
+      instagramCommentHookMatchType: "contains",
+      instagramCommentHookReplyMessage: "Here you go",
+      instagramCommentHookDmEnabled: true,
+      instagramCommentHookPublicReplyEnabled: false,
+      instagramCommentHookPublicReplyMessage: null,
+    },
+    stats: { sent7d: 2, failed7d: 0, skipped7d: 1, lastDeliveryAt: null },
+    createdAt: "2026-11-01T00:00:00.000Z",
+    updatedAt: "2026-11-01T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+test("comment automation methods use the public endpoints", async () => {
+  const calls = [];
+  const client = new Post2allClient({
+    apiKey: "amp_test",
+    baseUrl: "https://example.test/api/v1",
+    fetchImplementation: async (url, init) => {
+      const headers = new Headers(init?.headers);
+      calls.push({
+        url: String(url),
+        method: init?.method ?? "GET",
+        body: init?.body ? JSON.parse(init.body) : undefined,
+        idempotencyKey: headers.get("idempotency-key"),
+        profileId: headers.get("x-profile-id"),
+      });
+      const path = new URL(String(url)).pathname;
+      if (path.endsWith("/deliveries")) {
+        return Response.json({
+          deliveries: [
+            {
+              id: "delivery-1",
+              commentId: "comment-1",
+              commenterUsername: "fan",
+              commentText: "guide please",
+              status: "sent",
+              error: null,
+              dmSent: true,
+              publicReplySent: false,
+              publicReplyError: null,
+              createdAt: "2026-11-02T00:00:00.000Z",
+            },
+          ],
+          pagination: { hasMore: false, nextCursor: null },
+        });
+      }
+      if (init?.method === "DELETE") return Response.json({ success: true });
+      if (init?.method === "POST") {
+        return Response.json(
+          {
+            automation: commentAutomationFixture(),
+            warnings: [],
+            created: true,
+          },
+          { status: 201 },
+        );
+      }
+      if (init?.method === "PATCH") {
+        return Response.json({
+          automation: commentAutomationFixture({
+            enabled: false,
+            status: "paused",
+          }),
+          warnings: [],
+        });
+      }
+      if (path.endsWith("/comment-automations")) {
+        return Response.json({
+          automations: [commentAutomationFixture()],
+          pagination: { hasMore: true, nextCursor: "cursor-2" },
+        });
+      }
+      return Response.json({ automation: commentAutomationFixture() });
+    },
+  }).forProfile("profile-1");
+
+  const list = await client.listCommentAutomations({
+    accountId: "account-1",
+    enabled: false,
+    status: "paused",
+    limit: 10,
+  });
+  const created = await client.createCommentAutomation(
+    {
+      accountId: "account-1",
+      platformPostId: "17890000000000001",
+      settings: {
+        instagramCommentHookMatchMode: "keywords",
+        instagramCommentHookKeywords: ["guide"],
+        instagramCommentHookReplyMessage: "Here you go",
+      },
+    },
+    { idempotencyKey: "create-1" },
+  );
+  const fetched = await client.getCommentAutomation("automation-1");
+  const paused = await client.updateCommentAutomation("automation-1", {
+    enabled: false,
+  });
+  const deliveries = await client.listCommentAutomationDeliveries(
+    "automation-1",
+    { limit: 5 },
+  );
+  const deleted = await client.deleteCommentAutomation("automation-1");
+
+  assert.deepEqual(
+    calls.map(({ url, method }) => [method, url]),
+    [
+      [
+        "GET",
+        "https://example.test/api/v1/comment-automations?accountId=account-1&enabled=false&status=paused&limit=10",
+      ],
+      ["POST", "https://example.test/api/v1/comment-automations"],
+      ["GET", "https://example.test/api/v1/comment-automations/automation-1"],
+      ["PATCH", "https://example.test/api/v1/comment-automations/automation-1"],
+      [
+        "GET",
+        "https://example.test/api/v1/comment-automations/automation-1/deliveries?limit=5",
+      ],
+      [
+        "DELETE",
+        "https://example.test/api/v1/comment-automations/automation-1",
+      ],
+    ],
+  );
+  assert.equal(calls[0].profileId, "profile-1");
+  assert.equal(calls[1].idempotencyKey, "create-1");
+  assert.deepEqual(calls[3].body, { enabled: false });
+  assert.equal(list.pagination.nextCursor, "cursor-2");
+  assert.equal(created.created, true);
+  assert.equal(fetched.automation.post.origin, "instagram");
+  assert.equal(paused.automation.status, "paused");
+  assert.equal(deliveries.deliveries[0].dmSent, true);
+  assert.equal(deleted.success, true);
+});
+
+test("comment automation inputs are validated from the generated Instagram fields", async () => {
+  let requests = 0;
+  const client = new Post2allClient({
+    apiKey: "amp_test",
+    baseUrl: "https://example.test/api/v1",
+    fetchImplementation: async () => {
+      requests += 1;
+      return Response.json({});
+    },
+  });
+
+  await assert.rejects(() =>
+    client.createCommentAutomation({
+      accountId: "account-1",
+      platformPostId: "1789",
+      settings: { instagramCommentHookMatchType: "regex" },
+    }),
+  );
+  await assert.rejects(() =>
+    client.createCommentAutomation({
+      accountId: "account-1",
+      platformPostId: "1789",
+      settings: { instagramCommentHookEnabled: true },
+    }),
+  );
+  await assert.rejects(() =>
+    client.createCommentAutomation({
+      accountId: "account-1",
+      platformPostId: "1789",
+      settings: {
+        instagramCommentHookKeywords: Array.from(
+          { length: 11 },
+          (_, i) => `k${i}`,
+        ),
+      },
+    }),
+  );
+  await assert.rejects(() =>
+    client.updateCommentAutomation("automation-1", {}),
+  );
+  await assert.rejects(() => client.getCommentAutomation(""));
+  assert.equal(requests, 0);
 });

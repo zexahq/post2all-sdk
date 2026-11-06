@@ -116,6 +116,10 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
               "Publish this post to an X Community and share it with your followers.",
           },
         },
+        commentAutomation: {
+          available: false,
+          reply: [],
+        },
       },
       publishedDeletion: {
         available: true,
@@ -158,6 +162,10 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
             enabled: true,
             maxLength: 3000,
           },
+        },
+        commentAutomation: {
+          available: false,
+          reply: [],
         },
       },
       publishedDeletion: {
@@ -319,6 +327,10 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
             defaultValue: true,
             postTypes: ["video"],
           },
+        },
+        commentAutomation: {
+          available: false,
+          reply: [],
         },
       },
       publishedDeletion: {
@@ -688,6 +700,10 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
             composerVisible: false,
           },
         },
+        commentAutomation: {
+          available: true,
+          reply: ["dm", "public"],
+        },
       },
       publishedDeletion: {
         available: false,
@@ -814,6 +830,10 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
             postTypes: ["text"],
           },
         },
+        commentAutomation: {
+          available: false,
+          reply: [],
+        },
       },
       publishedDeletion: {
         available: true,
@@ -906,6 +926,10 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
             composerVisible: false,
           },
         },
+        commentAutomation: {
+          available: false,
+          reply: [],
+        },
       },
       publishedDeletion: {
         available: true,
@@ -972,6 +996,10 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
             enabled: true,
             maxLength: 50,
           },
+        },
+        commentAutomation: {
+          available: false,
+          reply: [],
         },
       },
       publishedDeletion: {
@@ -1064,6 +1092,10 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
             postTypes: ["image"],
           },
         },
+        commentAutomation: {
+          available: false,
+          reply: [],
+        },
       },
       publishedDeletion: {
         available: true,
@@ -1132,6 +1164,10 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
             maxLength: 300,
           },
         },
+        commentAutomation: {
+          available: false,
+          reply: [],
+        },
       },
       publishedDeletion: {
         available: true,
@@ -1193,6 +1229,10 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
             label: "Protect content",
           },
         },
+        commentAutomation: {
+          available: false,
+          reply: [],
+        },
       },
       publishedDeletion: {
         available: true,
@@ -1250,6 +1290,10 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
             description:
               "Automatically crosspost messages sent to announcement channels.",
           },
+        },
+        commentAutomation: {
+          available: false,
+          reply: [],
         },
       },
       publishedDeletion: {
@@ -1426,6 +1470,10 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
             postTypes: ["video"],
           },
         },
+        commentAutomation: {
+          available: false,
+          reply: [],
+        },
       },
       publishedDeletion: {
         available: false,
@@ -1474,6 +1522,10 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
             composerVisible: true,
             publiclyDiscoverable: true,
           },
+        },
+        commentAutomation: {
+          available: false,
+          reply: [],
         },
       },
       publishedDeletion: {
@@ -1564,6 +1616,10 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
             postTypes: ["image", "video"],
           },
         },
+        commentAutomation: {
+          available: false,
+          reply: [],
+        },
       },
       publishedDeletion: {
         available: true,
@@ -1632,6 +1688,10 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
               "Let Slack expand links and media in the message into preview cards.",
             defaultValue: true,
           },
+        },
+        commentAutomation: {
+          available: false,
+          reply: [],
         },
       },
       publishedDeletion: {

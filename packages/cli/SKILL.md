@@ -213,6 +213,18 @@ post2all post delete <postId> --json
 
 This cancels any pending schedule and removes the post2all record. Content already published to social platforms remains live there.
 
+## Comment automations (auto DM on an existing Instagram post)
+
+Find the post: `post2all post get <postId> --json` gives the published Instagram target's `platformPostId`; for posts made outside post2all use `post2all account analytics-posts <accountId>` (90-day windows) or pass the link with `--post-url`. Read the `instagramCommentHook*` limits from `post2all account publishing-options` / the publishing schema, confirm the rule with the user, then:
+
+```bash
+post2all automation create --account <accountId> --post-id <instagramPostId> \
+  --keyword guide --dm "Here is the guide: https://example.com/guide" --json
+post2all automation get <automationId> --json
+```
+
+Pause with `automation update <id> --disable`, resume with `--enable`, remove with `automation delete <id>`; each changes live behavior, so confirm first. Instagram allows one private DM per comment and only within 7 days of the comment, so only new comments after creation are answered.
+
 ## Status filters
 
 Valid post statuses are `draft`, `scheduled`, `publishing`, `published`, `completed`, `partially_failed`, and `failed`. A `completed` post succeeded but includes at least one upload-only target that still needs user action in the platform app.

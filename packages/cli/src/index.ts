@@ -5,9 +5,13 @@ import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 import {
+  ANALYTICS_LIMITS,
   Post2allApiError,
   Post2allClient,
   analyticsSortBySchema,
+  commentAutomationStatusSchema,
+  type CommentAutomation,
+  type CommentAutomationSettingsInput,
   instagramConnectionMethodSchema,
   platformSchema,
   postMediaInputSchema,
@@ -129,6 +133,35 @@ type AccountConnectionOptions = {
   json?: boolean;
 };
 
+type AutomationSettingsOptions = {
+  keyword?: string[];
+  matchMode?: string;
+  matchType?: string;
+  exclude?: string[];
+  dm?: string | boolean;
+  publicReply?: string | boolean;
+};
+type AutomationCreateOptions = AutomationSettingsOptions & {
+  account: string;
+  postId?: string;
+  postUrl?: string;
+  idempotencyKey?: string;
+  json?: boolean;
+};
+type AutomationUpdateOptions = AutomationSettingsOptions & {
+  enable?: boolean;
+  disable?: boolean;
+  json?: boolean;
+};
+type AutomationListOptions = {
+  account?: string;
+  enabled?: boolean;
+  disabled?: boolean;
+  status?: string;
+  cursor?: string;
+  limit?: string;
+  json?: boolean;
+};
 type ProfileListOptions = {
   externalId?: string;
   json?: boolean;
@@ -1647,6 +1680,405 @@ program
       handleError(error);
     }
   });
+
+// ─── Comment automations ─────────────────────────────────────────────────────
+
+function collectValues(value: string, previous: string[] = []): string[] {
+  return [...previous, value];
+}
+
+/** Flags → instagramCommentHook* settings. Rules (limits, required message) stay server-side. */
+function automationSettings(
+  options: AutomationSettingsOptions,
+): CommentAutomationSettingsInput {
+  const settings: Record<string, unknown> = {};
+  if (options.keyword?.length) {
+    settings.instagramCommentHookKeywords = options.keyword.flatMap(parseCsv);
+  }
+  if (options.exclude?.length) {
+    settings.instagramCommentHookExcludeKeywords =
+      options.exclude.flatMap(parseCsv);
+  }
+  if (options.matchMode !== undefined) {
+    settings.instagramCommentHookMatchMode = options.matchMode;
+  }
+  if (options.matchType !== undefined) {
+    settings.instagramCommentHookMatchType = options.matchType;
+  }
+  if (typeof options.dm === "string") {
+    settings.instagramCommentHookReplyMessage = options.dm;
+    settings.instagramCommentHookDmEnabled = true;
+  } else if (options.dm === false) {
+    settings.instagramCommentHookDmEnabled = false;
+  }
+  if (typeof options.publicReply === "string") {
+    settings.instagramCommentHookPublicReplyMessage = options.publicReply;
+    settings.instagramCommentHookPublicReplyEnabled = true;
+  } else if (options.publicReply === false) {
+    settings.instagramCommentHookPublicReplyEnabled = false;
+  }
+  return settings as CommentAutomationSettingsInput;
+}
+
+function addAutomationSettingsOptions(command: Command): Command {
+  return command
+    .option(
+      "--keyword <keyword>",
+      "Trigger keyword (repeatable or comma-separated)",
+      collectValues,
+    )
+    .option("--match-mode <mode>", "any (every comment) or keywords")
+    .option(
+      "--match-type <type>",
+      "Keyword matching: exact, contains, full_word, or begins_with",
+    )
+    .option(
+      "--exclude <keyword>",
+      "Never reply to comments containing this keyword (repeatable)",
+      collectValues,
+    )
+    .option("--dm <message>", "Private DM sent to the commenter")
+    .option("--no-dm", "Do not send a DM (public reply only)")
+    .option("--public-reply <message>", "Public reply posted under the comment")
+    .option("--no-public-reply", "Turn the public reply off");
+}
+
+function normalizePostUrl(url: string): string {
+  try {
+    const parsed = new URL(url.trim());
+    const path = parsed.pathname.replace(/\/+$/, "");
+    return `${parsed.hostname.replace(/^www\./, "")}${path}`.toLowerCase();
+  } catch {
+    return url.trim().replace(/\/+$/, "").toLowerCase();
+  }
+}
+
+const POST_URL_LOOKUP_MAX_WINDOWS = 8;
+const POST_URL_LOOKUP_MAX_REQUESTS = 60;
+
+/** Finds the Instagram post id for a permalink by paging the account's post listing. */
+async function resolvePlatformPostIdFromUrl(
+  client: Post2allClient,
+  accountId: string,
+  postUrl: string,
+): Promise<string> {
+  const target = normalizePostUrl(postUrl);
+  const dayMs = 24 * 60 * 60 * 1000;
+  const windowDays = ANALYTICS_LIMITS.maxRangeDays;
+  let end = new Date();
+  let requests = 0;
+  for (let window = 0; window < POST_URL_LOOKUP_MAX_WINDOWS; window += 1) {
+    const start = new Date(end.getTime() - (windowDays - 1) * dayMs);
+    let cursor: string | undefined;
+    do {
+      if (requests >= POST_URL_LOOKUP_MAX_REQUESTS) break;
+      requests += 1;
+      const page = await client.listAccountAnalyticsPosts(accountId, {
+        startDate: start.toISOString().slice(0, 10),
+        endDate: end.toISOString().slice(0, 10),
+        limit: ANALYTICS_LIMITS.maxPostsPageSize,
+        ...(cursor ? { cursor } : {}),
+      });
+      const match = page.posts.find(
+        (post) =>
+          post.platformPostUrl &&
+          normalizePostUrl(post.platformPostUrl) === target,
+      );
+      if (match) return match.platformPostId;
+      cursor = page.pagination.nextCursor ?? undefined;
+    } while (cursor);
+    end = new Date(start.getTime() - dayMs);
+  }
+  throw new Error(
+    `No post matching ${postUrl} was found on this account in the last ${POST_URL_LOOKUP_MAX_WINDOWS * windowDays} days. Pass --post-id with the Instagram post id instead.`,
+  );
+}
+
+function automationRow(automation: CommentAutomation) {
+  const settings = automation.settings;
+  return {
+    id: automation.id,
+    status: automation.status,
+    account: automation.account.username ?? automation.account.id ?? "—",
+    post: automation.post.url ?? automation.post.platformPostId ?? "—",
+    trigger:
+      settings.instagramCommentHookMatchMode === "any"
+        ? "any comment"
+        : settings.instagramCommentHookKeywords.join(", "),
+    dm: settings.instagramCommentHookDmEnabled ? "yes" : "no",
+    publicReply: settings.instagramCommentHookPublicReplyEnabled ? "yes" : "no",
+    sent7d: automation.stats.sent7d,
+    failed7d: automation.stats.failed7d,
+  };
+}
+
+function printAutomationWrite(
+  result: { automation: CommentAutomation; warnings: string[] },
+  heading: string,
+): void {
+  console.log(heading);
+  printOutput([automationRow(result.automation)]);
+  if (result.automation.pausedReason) {
+    console.log(`Paused by post2all: ${result.automation.pausedReason}`);
+  }
+  for (const warning of result.warnings) console.warn(`Warning: ${warning}`);
+}
+
+const automationCommand = program
+  .command("automation")
+  .description(
+    "Manage Instagram comment automations (auto DM and public replies on an existing post)",
+  );
+
+automationCommand
+  .command("list")
+  .description("List comment automations")
+  .option("--account <accountId>", "Filter by social account ID")
+  .option("--enabled", "Only automations that are switched on")
+  .option("--disabled", "Only automations that are switched off")
+  .option(
+    "--status <status>",
+    `Filter by ${commentAutomationStatusSchema.options.join(", ")}`,
+  )
+  .option("--cursor <cursor>", "Pagination cursor")
+  .option("--limit <limit>", "Items per page (maximum 100)")
+  .option("--json", "Output JSON")
+  .action(async (options: AutomationListOptions) => {
+    try {
+      if (options.enabled && options.disabled) {
+        throw new Error("Use either --enabled or --disabled, not both.");
+      }
+      const client = await createClient(program.opts<RootOptions>());
+      const response = await client.listCommentAutomations({
+        ...(options.account !== undefined
+          ? { accountId: options.account }
+          : {}),
+        ...(options.enabled ? { enabled: true } : {}),
+        ...(options.disabled ? { enabled: false } : {}),
+        ...(options.status !== undefined
+          ? {
+              status: options.status as NonNullable<
+                Parameters<Post2allClient["listCommentAutomations"]>[0]
+              >["status"],
+            }
+          : {}),
+        ...(options.cursor !== undefined ? { cursor: options.cursor } : {}),
+        ...(options.limit !== undefined
+          ? { limit: Number(options.limit) }
+          : {}),
+      });
+      if (options.json) {
+        console.log(JSON.stringify(response, null, 2));
+        return;
+      }
+      printOutput(response.automations.map(automationRow));
+      console.log(
+        `hasMore=${response.pagination.hasMore}${response.pagination.nextCursor ? `, nextCursor=${response.pagination.nextCursor}` : ""}`,
+      );
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+automationCommand
+  .command("get")
+  .description("Show one comment automation with its recent deliveries")
+  .argument("<automationId>", "Comment automation ID")
+  .option("--json", "Output JSON")
+  .action(async (automationId: string, options: { json?: boolean }) => {
+    try {
+      const client = await createClient(program.opts<RootOptions>());
+      const [{ automation }, deliveries] = await Promise.all([
+        client.getCommentAutomation(automationId),
+        client.listCommentAutomationDeliveries(automationId, { limit: 10 }),
+      ]);
+      if (options.json) {
+        console.log(
+          JSON.stringify(
+            { automation, recentDeliveries: deliveries.deliveries },
+            null,
+            2,
+          ),
+        );
+        return;
+      }
+      printOutput([automationRow(automation)]);
+      if (automation.pausedReason) {
+        console.log(`Paused by post2all: ${automation.pausedReason}`);
+      }
+      const settings = automation.settings;
+      console.log(
+        `Match: ${settings.instagramCommentHookMatchMode} (${settings.instagramCommentHookMatchType})${settings.instagramCommentHookExcludeKeywords.length ? `, excluding ${settings.instagramCommentHookExcludeKeywords.join(", ")}` : ""}`,
+      );
+      if (settings.instagramCommentHookDmEnabled) {
+        console.log(`DM: ${settings.instagramCommentHookReplyMessage}`);
+      }
+      if (settings.instagramCommentHookPublicReplyEnabled) {
+        console.log(
+          `Public reply: ${settings.instagramCommentHookPublicReplyMessage ?? ""}`,
+        );
+      }
+      console.log("Recent deliveries:");
+      printOutput(deliveryRows(deliveries.deliveries));
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+function deliveryRows(
+  deliveries: Awaited<
+    ReturnType<Post2allClient["listCommentAutomationDeliveries"]>
+  >["deliveries"],
+) {
+  return deliveries.map((delivery) => ({
+    createdAt: delivery.createdAt,
+    commenter: delivery.commenterUsername ?? "—",
+    comment:
+      delivery.commentText.length > 60
+        ? `${delivery.commentText.slice(0, 59)}…`
+        : delivery.commentText,
+    status: delivery.status,
+    dm: delivery.dmSent ? "sent" : "—",
+    publicReply: delivery.publicReplySent ? "sent" : "—",
+    error: delivery.error ?? delivery.publicReplyError ?? "",
+  }));
+}
+
+addAutomationSettingsOptions(
+  automationCommand
+    .command("create")
+    .description(
+      "Create an automation on an existing Instagram post (published through post2all or not)",
+    )
+    .requiredOption("--account <accountId>", "Instagram social account ID")
+    .option("--post-id <platformPostId>", "Instagram post id")
+    .option(
+      "--post-url <url>",
+      "Instagram post link; resolved through the account's post listing",
+    )
+    .option("--idempotency-key <key>", "Idempotency-Key for safe retries")
+    .option("--json", "Output JSON"),
+).action(async (options: AutomationCreateOptions) => {
+  try {
+    if (Boolean(options.postId) === Boolean(options.postUrl)) {
+      throw new Error("Pass exactly one of --post-id or --post-url.");
+    }
+    const client = await createClient(program.opts<RootOptions>());
+    const platformPostId =
+      options.postId ??
+      (await resolvePlatformPostIdFromUrl(
+        client,
+        options.account,
+        options.postUrl!,
+      ));
+    const result = await client.createCommentAutomation(
+      {
+        accountId: options.account,
+        platformPostId,
+        settings: automationSettings(options),
+      },
+      options.idempotencyKey ? { idempotencyKey: options.idempotencyKey } : {},
+    );
+    if (options.json) {
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
+    printAutomationWrite(
+      result,
+      result.created
+        ? "Comment automation created."
+        : "This post already had a comment automation; it was updated.",
+    );
+  } catch (error) {
+    handleError(error);
+  }
+});
+
+addAutomationSettingsOptions(
+  automationCommand
+    .command("update")
+    .description("Change an automation's rules, or pause/resume it")
+    .argument("<automationId>", "Comment automation ID")
+    .option("--enable", "Turn the automation on (also clears a system pause)")
+    .option("--disable", "Pause the automation")
+    .option("--json", "Output JSON"),
+).action(async (automationId: string, options: AutomationUpdateOptions) => {
+  try {
+    if (options.enable && options.disable) {
+      throw new Error("Use either --enable or --disable, not both.");
+    }
+    const settings = automationSettings(options);
+    const client = await createClient(program.opts<RootOptions>());
+    const result = await client.updateCommentAutomation(automationId, {
+      ...(Object.keys(settings).length > 0 ? { settings } : {}),
+      ...(options.enable ? { enabled: true } : {}),
+      ...(options.disable ? { enabled: false } : {}),
+    });
+    if (options.json) {
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
+    printAutomationWrite(result, "Comment automation updated.");
+  } catch (error) {
+    handleError(error);
+  }
+});
+
+automationCommand
+  .command("delete")
+  .description("Delete a comment automation")
+  .argument("<automationId>", "Comment automation ID")
+  .option("--json", "Output JSON")
+  .action(async (automationId: string, options: { json?: boolean }) => {
+    try {
+      const client = await createClient(program.opts<RootOptions>());
+      const result = await client.deleteCommentAutomation(automationId);
+      if (options.json) {
+        console.log(JSON.stringify(result, null, 2));
+        return;
+      }
+      console.log(`Deleted comment automation ${automationId}.`);
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+automationCommand
+  .command("deliveries")
+  .description("List the comments an automation answered, newest first")
+  .argument("<automationId>", "Comment automation ID")
+  .option("--cursor <cursor>", "Pagination cursor")
+  .option("--limit <limit>", "Items per page (maximum 100)")
+  .option("--json", "Output JSON")
+  .action(
+    async (
+      automationId: string,
+      options: { cursor?: string; limit?: string; json?: boolean },
+    ) => {
+      try {
+        const client = await createClient(program.opts<RootOptions>());
+        const response = await client.listCommentAutomationDeliveries(
+          automationId,
+          {
+            ...(options.cursor !== undefined ? { cursor: options.cursor } : {}),
+            ...(options.limit !== undefined
+              ? { limit: Number(options.limit) }
+              : {}),
+          },
+        );
+        if (options.json) {
+          console.log(JSON.stringify(response, null, 2));
+          return;
+        }
+        printOutput(deliveryRows(response.deliveries));
+        console.log(
+          `hasMore=${response.pagination.hasMore}${response.pagination.nextCursor ? `, nextCursor=${response.pagination.nextCursor}` : ""}`,
+        );
+      } catch (error) {
+        handleError(error);
+      }
+    },
+  );
 
 program
   .parseAsync(process.argv)

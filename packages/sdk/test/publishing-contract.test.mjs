@@ -361,3 +361,26 @@ test("publishing without shared content is allowed when every target has its own
     sdkTypes.createPostInputSchema.parse({ ...now, targets: [target()] }),
   );
 });
+
+test("comment automation capability is static contract metadata", () => {
+  assert.deepEqual(sdkTypes.getCommentAutomationCapability("instagram"), {
+    available: true,
+    reply: ["dm", "public"],
+  });
+  assert.equal(
+    sdkTypes.getCommentAutomationCapability("twitter").available,
+    false,
+  );
+  assert.equal(
+    sdkTypes.platformCapabilitySchema.parse(
+      PUBLIC_PUBLISHING_CONTRACT.platforms.instagram.capability,
+    ).commentAutomation?.available,
+    true,
+  );
+  for (const key of sdkTypes.COMMENT_AUTOMATION_SETTINGS_KEYS) {
+    assert.ok(
+      key in PUBLIC_PUBLISHING_CONTRACT.platforms.instagram.capability.fields,
+      key,
+    );
+  }
+});

@@ -297,6 +297,38 @@ await client.createPost({
 });
 ```
 
+## Comment automations (auto DM)
+
+A comment automation answers new comments on one existing Instagram post, whether or not post2all published it: one private DM per matching comment and/or a public reply. Check `getCommentAutomationCapability("instagram").available` (or `capability.commentAutomation` in `getPublishingSchema()`), and read the `instagramCommentHook*` field limits from the account's publishing schema.
+
+Find the post's `platformPostId` on a published Instagram target from `getPost()`, or in `listAccountAnalyticsPosts()` for any post on the account (each call covers at most `ANALYTICS_LIMITS.maxRangeDays` days; step back through earlier windows for older posts).
+
+```ts
+const { automation, warnings, created } = await client.createCommentAutomation(
+  {
+    accountId: "acc_instagram_123",
+    platformPostId: "17890000000000001",
+    settings: {
+      instagramCommentHookMatchMode: "keywords",
+      instagramCommentHookKeywords: ["guide"],
+      instagramCommentHookMatchType: "contains",
+      instagramCommentHookReplyMessage:
+        "Here is the guide: https://example.com/guide",
+      instagramCommentHookDmEnabled: true,
+    },
+  },
+  { idempotencyKey: "guide-post-automation" },
+);
+
+await client.updateCommentAutomation(automation.id, { enabled: false }); // pause
+await client.updateCommentAutomation(automation.id, { enabled: true }); // resume
+const { deliveries } = await client.listCommentAutomationDeliveries(
+  automation.id,
+);
+```
+
+Creating on a post that already has an automation updates it and returns `created: false`. `status` is `on`, `paused`, `needs_attention` (post2all paused it; see `pausedReason`), or `waiting`. Instagram accepts one private reply per comment and only within 7 days of the comment, so only new comments are answered.
+
 ## Credit billing and publishing capacity
 
 Organizations manually onboarded onto credit billing can inspect their prepaid access and selected-account rolling publishing capacity:
@@ -481,6 +513,12 @@ const { media } = await client.uploadMediaFromUrl(
 - `deletePublishedPost(postId, postAccountId)` — removes one published social post on a public deletion platform while keeping the post2all post
 - `deletePost(postId)` — removes the post from post2all; already-published social content remains live
 - `cancelPost(postId)`
+- `listCommentAutomations(input?)`
+- `createCommentAutomation(input, options?)` — comment-to-DM automation on an existing Instagram post
+- `getCommentAutomation(automationId)`
+- `updateCommentAutomation(automationId, input)` — rules and/or `enabled` (pause/resume)
+- `deleteCommentAutomation(automationId)`
+- `listCommentAutomationDeliveries(automationId, input?)`
 
 Use `getPost(postId)` first and check `target.deletion.available`. When it is `false`, `target.deletion.reason` explains why. This runtime state already includes platform rollout, account state, provider IDs, and time limits. Private rollout platforms are never unlocked through API keys.
 

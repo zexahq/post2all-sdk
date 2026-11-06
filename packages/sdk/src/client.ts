@@ -11,6 +11,26 @@ import {
   accountConnectionStartSchema,
   type AccountPlatformsResponse,
   accountPlatformsResponseSchema,
+  type CreateCommentAutomationInput,
+  createCommentAutomationInputSchema,
+  type CreateCommentAutomationResponse,
+  createCommentAutomationResponseSchema,
+  type DeleteCommentAutomationResponse,
+  deleteCommentAutomationResponseSchema,
+  type GetCommentAutomationResponse,
+  getCommentAutomationResponseSchema,
+  type ListCommentAutomationDeliveriesInput,
+  listCommentAutomationDeliveriesInputSchema,
+  type ListCommentAutomationDeliveriesResponse,
+  listCommentAutomationDeliveriesResponseSchema,
+  type ListCommentAutomationsInput,
+  listCommentAutomationsInputSchema,
+  type ListCommentAutomationsResponse,
+  listCommentAutomationsResponseSchema,
+  type UpdateCommentAutomationInput,
+  updateCommentAutomationInputSchema,
+  type UpdateCommentAutomationResponse,
+  updateCommentAutomationResponseSchema,
   type AccountAnalyticsInput,
   accountAnalyticsInputSchema,
   type AccountAnalyticsPostsInput,
@@ -846,6 +866,111 @@ export class Post2allClient {
     );
 
     return this.parseJson(response, cancelPostResponseSchema);
+  }
+
+  /**
+   * List comment automations (comment → DM and/or public reply on one Instagram post).
+   * A client scoped with `forProfile()` lists only that profile's accounts.
+   */
+  public async listCommentAutomations(
+    input: ListCommentAutomationsInput = {},
+  ): Promise<ListCommentAutomationsResponse> {
+    input = listCommentAutomationsInputSchema.parse(input);
+    const query = new URLSearchParams();
+    if (input.accountId !== undefined) query.set("accountId", input.accountId);
+    if (input.enabled !== undefined)
+      query.set("enabled", String(input.enabled));
+    if (input.status !== undefined) query.set("status", input.status);
+    if (input.cursor !== undefined) query.set("cursor", input.cursor);
+    if (input.limit !== undefined) query.set("limit", String(input.limit));
+    const suffix = query.size > 0 ? `?${query.toString()}` : "";
+    const response = await this.request(`/comment-automations${suffix}`);
+    return this.parseJson(response, listCommentAutomationsResponseSchema);
+  }
+
+  /**
+   * Create a comment automation on an existing Instagram post, published through post2all or
+   * not. If the post already has one in this workspace it is updated (`created: false`).
+   */
+  public async createCommentAutomation(
+    input: CreateCommentAutomationInput,
+    options: Post2allRequestOptions = {},
+  ): Promise<CreateCommentAutomationResponse> {
+    input = createCommentAutomationInputSchema.parse(input);
+    const response = await this.request("/comment-automations", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.idempotencyKey
+          ? { "Idempotency-Key": options.idempotencyKey }
+          : {}),
+        ...(options.requestId ? { "X-Request-Id": options.requestId } : {}),
+      },
+      body: JSON.stringify(input),
+    });
+    return this.parseJson(response, createCommentAutomationResponseSchema);
+  }
+
+  public async getCommentAutomation(
+    automationId: string,
+  ): Promise<GetCommentAutomationResponse> {
+    const response = await this.request(
+      this.commentAutomationPath(automationId),
+    );
+    return this.parseJson(response, getCommentAutomationResponseSchema);
+  }
+
+  /** Change rules (merged over the stored ones) and/or pause (`enabled: false`) or resume. */
+  public async updateCommentAutomation(
+    automationId: string,
+    input: UpdateCommentAutomationInput,
+  ): Promise<UpdateCommentAutomationResponse> {
+    const path = this.commentAutomationPath(automationId);
+    input = updateCommentAutomationInputSchema.parse(input);
+    const response = await this.request(path, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    return this.parseJson(response, updateCommentAutomationResponseSchema);
+  }
+
+  public async deleteCommentAutomation(
+    automationId: string,
+  ): Promise<DeleteCommentAutomationResponse> {
+    const response = await this.request(
+      this.commentAutomationPath(automationId),
+      { method: "DELETE" },
+    );
+    return this.parseJson(response, deleteCommentAutomationResponseSchema);
+  }
+
+  /** Newest first: each matching comment and whether the DM/public reply went out. */
+  public async listCommentAutomationDeliveries(
+    automationId: string,
+    input: ListCommentAutomationDeliveriesInput = {},
+  ): Promise<ListCommentAutomationDeliveriesResponse> {
+    const path = this.commentAutomationPath(automationId);
+    input = listCommentAutomationDeliveriesInputSchema.parse(input);
+    const query = new URLSearchParams();
+    if (input.cursor !== undefined) query.set("cursor", input.cursor);
+    if (input.limit !== undefined) query.set("limit", String(input.limit));
+    const suffix = query.size > 0 ? `?${query.toString()}` : "";
+    const response = await this.request(`${path}/deliveries${suffix}`);
+    return this.parseJson(
+      response,
+      listCommentAutomationDeliveriesResponseSchema,
+    );
+  }
+
+  private commentAutomationPath(automationId: string): string {
+    if (!automationId) {
+      throw new Post2allApiError("automationId is required", {
+        status: 400,
+        code: "INVALID_REQUEST",
+      });
+    }
+    return `/comment-automations/${encodeURIComponent(automationId)}`;
   }
 
   private async request(
