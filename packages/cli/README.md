@@ -227,6 +227,12 @@ post2all post create \
   --delivery now
 ```
 
+`post create` and `post update` print a `Warning:` line on stderr when scheduled posts are projected to fail because the trial or X post allowance runs out (an X post with a link uses 13 X posts). With `--json`, the same strings are in `warnings`. Check the allowance first with:
+
+```bash
+post2all usage
+```
+
 ## Media
 
 ```bash

@@ -62,6 +62,8 @@ import {
   type CreditBillingResponse,
   creditBillingResponseSchema,
   type XApiPricingResponse,
+  type UsageForecastResponse,
+  usageForecastResponseSchema,
   xApiPricingResponseSchema,
   type PublishingLimitsResponse,
   publishingLimitsRequestSchema,
@@ -549,6 +551,15 @@ export class Post2allClient {
   public async getBilling(): Promise<CreditBillingResponse> {
     const response = await this.request("/billing", undefined, false);
     return this.parseJson(response, creditBillingResponseSchema);
+  }
+
+  /**
+   * Trial and X post allowance, what scheduled posts will need, and how many are projected to
+   * fail at publish time. Credit workspaces return `applicable: false`.
+   */
+  public async getUsage(): Promise<UsageForecastResponse> {
+    const response = await this.request("/usage", undefined, false);
+    return this.parseJson(response, usageForecastResponseSchema);
   }
 
   public async getXApiPricing(): Promise<XApiPricingResponse> {

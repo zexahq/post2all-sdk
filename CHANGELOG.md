@@ -2,6 +2,14 @@
 
 All notable changes to the post2all SDK and CLI are documented here.
 
+## Unreleased
+
+### Added
+
+- `createPost()` and `updatePost()` responses include an optional `warnings` array when scheduled posts are projected to fail at publish time because the trial's successful-post limit or the X post allowance runs out. Older SDKs ignore the field.
+- `getUsage()` reads `GET /api/v1/usage`: the trial and X post allowance, what scheduled posts will need, and projected failures. `usageForecastResponseSchema` and the `UsageForecastResponse` type are exported.
+- CLI: `post2all usage`, and `post create` / `post update` print usage warnings after the result.
+
 ## 0.4.4 - 2026-11-06
 
 ### Added

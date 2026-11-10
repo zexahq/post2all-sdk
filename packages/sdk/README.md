@@ -49,6 +49,18 @@ For production creates, pass a stable idempotency key so a timeout can be retrie
 await client.createPost(input, { idempotencyKey: "customer-job-123" });
 ```
 
+`createPost()` and `updatePost()` may return a non-blocking `warnings` array next to `post`. It appears when scheduled posts are projected to fail at publish time because the trial's successful-post limit or the X post allowance runs out (an X post with a link in its text or first comment uses 13 X posts). The post is still saved; show the warnings to your user. `getUsage()` returns the same forecast before you compose:
+
+```ts
+const usage = await client.getUsage();
+if (usage.applicable) {
+  for (const limit of usage.limits) {
+    console.log(limit.kind, limit.remaining, limit.projectedFailures);
+  }
+  usage.warnings.forEach((warning) => console.warn(warning));
+}
+```
+
 With the default `baseUrl`, API requests do not follow HTTP redirects (`redirect: "manual"`), so your `x-api-key` is never forwarded to another host. A custom `baseUrl` keeps the fetch default; pass `redirect: "manual"` to opt in to the same protection.
 
 `targets` is a discriminated union. Once `platform` is selected, TypeScript and Zod only accept settings supported by that platform.
@@ -497,6 +509,7 @@ const { media } = await client.uploadMediaFromUrl(
 - `getPublishingSchema(accountIds)`
 - `getPublishingOptions(accountIds, searches?)`
 - `getAccountPublishingOptions(accountId)` (compatibility)
+- `getUsage()` — trial and X post allowance, scheduled demand, and projected failures (not applicable to credit-based organizations)
 - `getBilling()` (credit-based organizations only)
 - `getXApiPricing()` (credit-based organizations only)
 - `getPublishingLimits(accountIds)` (credit-based organizations only)

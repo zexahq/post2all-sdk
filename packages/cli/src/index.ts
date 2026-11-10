@@ -810,6 +810,58 @@ program
     }
   });
 
+/** Non-blocking forecast warnings from create/update, printed after the result. */
+function printUsageWarnings(warnings: readonly string[] | undefined): void {
+  for (const warning of warnings ?? []) console.warn(`Warning: ${warning}`);
+}
+
+program
+  .command("usage")
+  .description(
+    "Show trial and X post allowance and how many scheduled posts will fail",
+  )
+  .option("--json", "Output JSON")
+  .action(async (options: { json?: boolean }) => {
+    try {
+      const client = await createClient(program.opts<RootOptions>());
+      const response = await client.getUsage();
+
+      if (options.json) {
+        console.log(JSON.stringify(response, null, 2));
+        return;
+      }
+
+      if (!response.applicable) {
+        console.log(
+          response.reason === "credit_workspace"
+            ? "Credit workspaces have no trial or X post allowance; X posts are billed per post."
+            : "This workspace has no active plan.",
+        );
+        return;
+      }
+
+      console.log(
+        `${response.isTrialing ? "Trial" : "Billing period"}: ${response.period.start} to ${response.period.end}`,
+      );
+      printOutput(
+        response.limits.map((limit) => ({
+          limit: limit.kind === "x_post_units" ? "X posts" : "Successful posts",
+          allowance: limit.limit,
+          used: limit.used,
+          scheduled: limit.scheduled,
+          remaining: limit.remaining,
+          willFail: limit.projectedFailures,
+        })),
+      );
+      console.log(
+        `An X post with a link uses ${response.xLinkPostUnits} X posts.`,
+      );
+      printUsageWarnings(response.warnings);
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
 program
   .command("accounts")
   .description("List connected social accounts")
@@ -1317,6 +1369,7 @@ postCommand
         return;
       }
       printOutput([response.post]);
+      printUsageWarnings(response.warnings);
     } catch (error) {
       handleError(error);
     }
@@ -1495,6 +1548,7 @@ postCommand
         return;
       }
       printOutput([response.post]);
+      printUsageWarnings(response.warnings);
     } catch (error) {
       handleError(error);
     }

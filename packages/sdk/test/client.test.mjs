@@ -248,6 +248,70 @@ test("credit X pricing exposes exact pass-through rates", async () => {
   assert.equal(pricing.operations[1]?.priceMicros, 200_000);
 });
 
+test("usage forecast and post warnings are parsed additively", async () => {
+  const calls = [];
+  const client = new Post2allClient({
+    apiKey: "amp_test",
+    baseUrl: "https://example.test/api/v1",
+    fetchImplementation: async (url, init) => {
+      calls.push({ url: String(url), method: init?.method ?? "GET" });
+      if (String(url).endsWith("/usage")) {
+        return Response.json({
+          applicable: true,
+          organizationType: "standard",
+          isTrialing: true,
+          period: {
+            start: "2026-11-05T10:00:00.000Z",
+            end: "2026-11-19T10:00:00.000Z",
+          },
+          xLinkPostUnits: 13,
+          limits: [
+            {
+              kind: "x_post_units",
+              limit: 15,
+              used: 0,
+              scheduled: 27,
+              needed: 27,
+              remainingNow: 15,
+              remaining: 0,
+              projectedFailures: 12,
+              targetCount: 15,
+              linkTargetCount: 1,
+            },
+          ],
+          upgradeUrl: "https://app.post2all.com/acme/billing",
+          warnings: ["12 scheduled X posts will fail."],
+        });
+      }
+      return Response.json(
+        {
+          post: {
+            id: "post-1",
+            status: "scheduled",
+            createdAt: "2026-11-10T00:00:00.000Z",
+            mediaCount: 0,
+            targetCount: 0,
+            targets: [],
+          },
+          warnings: ["12 scheduled X posts will fail."],
+        },
+        { status: 201 },
+      );
+    },
+  });
+
+  const usage = await client.getUsage();
+  assert.equal(usage.applicable, true);
+  assert.equal(usage.applicable && usage.limits[0]?.projectedFailures, 12);
+  assert.equal(calls[0]?.url, "https://example.test/api/v1/usage");
+
+  const created = await client.createPost({
+    content: "hello",
+    delivery: { mode: "draft" },
+  });
+  assert.deepEqual(created.warnings, ["12 scheduled X posts will fail."]);
+});
+
 test("profile lifecycle methods use the public profile endpoints without profile scoping", async () => {
   const calls = [];
   const profile = {

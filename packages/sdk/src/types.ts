@@ -1059,6 +1059,39 @@ export const xApiPricingResponseSchema = z.object({
   ),
 });
 
+export const usageForecastLimitSchema = z.object({
+  kind: z.enum(["trial_posts", "x_post_units"]).or(z.string()),
+  limit: z.number().int().nonnegative(),
+  used: z.number().int().nonnegative(),
+  scheduled: z.number().int().nonnegative(),
+  needed: z.number().int().nonnegative(),
+  remainingNow: z.number().int().nonnegative(),
+  remaining: z.number().int().nonnegative(),
+  projectedFailures: z.number().int().nonnegative(),
+  targetCount: z.number().int().nonnegative(),
+  linkTargetCount: z.number().int().nonnegative(),
+});
+
+/** `GET /api/v1/usage`: trial and X allowance, scheduled demand, and projected failures. */
+export const usageForecastResponseSchema = z.discriminatedUnion("applicable", [
+  z.object({
+    applicable: z.literal(false),
+    reason: z.enum(["credit_workspace", "no_active_plan"]).or(z.string()),
+    organizationType: z.enum(["standard", "credit"]),
+    warnings: z.array(z.string()),
+  }),
+  z.object({
+    applicable: z.literal(true),
+    organizationType: z.literal("standard"),
+    isTrialing: z.boolean(),
+    period: z.object({ start: z.string(), end: z.string() }),
+    xLinkPostUnits: z.number().int().positive(),
+    limits: z.array(usageForecastLimitSchema),
+    upgradeUrl: z.string(),
+    warnings: z.array(z.string()),
+  }),
+]);
+
 export const publishingLimitsRequestSchema = z
   .object({ accountIds: z.array(z.string().min(1)).min(1).max(50) })
   .strict()
@@ -1240,6 +1273,12 @@ export const getPostResponseSchema = z.object({
   }),
 });
 
+/**
+ * Non-blocking usage warnings on create/update: scheduled posts projected to fail at publish time
+ * because the trial's successful-post limit or the X post allowance runs out. Absent when none.
+ */
+export const postUsageWarningsSchema = z.array(z.string()).optional();
+
 export const createPostResponseSchema = z.object({
   post: z.object({
     id: z.string(),
@@ -1252,6 +1291,7 @@ export const createPostResponseSchema = z.object({
     targetCount: z.number(),
     targets: z.array(postResponseTargetSchema),
   }),
+  warnings: postUsageWarningsSchema,
 });
 
 export const updatePostResponseSchema = z.object({
@@ -1265,6 +1305,7 @@ export const updatePostResponseSchema = z.object({
     createdAt: z.string(),
     updatedAt: z.string().nullable().optional(),
   }),
+  warnings: postUsageWarningsSchema,
 });
 
 export const retryPostResponseSchema = z.object({
@@ -1402,6 +1443,8 @@ export type PublishingSchemaResponse = z.infer<
 >;
 export type CreditBillingResponse = z.infer<typeof creditBillingResponseSchema>;
 export type XApiPricingResponse = z.infer<typeof xApiPricingResponseSchema>;
+export type UsageForecastLimit = z.infer<typeof usageForecastLimitSchema>;
+export type UsageForecastResponse = z.infer<typeof usageForecastResponseSchema>;
 export type PublishingLimitsRequest = z.infer<
   typeof publishingLimitsRequestSchema
 >;
