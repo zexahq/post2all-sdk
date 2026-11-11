@@ -367,7 +367,6 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
           minImageAspectRatio: 0.8,
           maxImageAspectRatio: 1.91,
           imageAspectRatioDescription: "4:5 to 1.91:1",
-          maxVideoWidth: 1920,
           minVideoDurationSeconds: 3,
           maxVideoDurationSeconds: 900,
           altText: {
@@ -393,7 +392,6 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
             convertPngToJpeg: true,
             maxImageBytes: 8388608,
             maxVideoBytes: 104857600,
-            maxVideoWidth: 1920,
             minVideoDurationSeconds: 3,
             maxVideoDurationSeconds: 60,
             description: "1 image or 1 video (3–60 seconds); 9:16 recommended",
