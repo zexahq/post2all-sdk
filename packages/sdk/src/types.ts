@@ -911,7 +911,8 @@ export const platformCapabilitySchema = z
       image: z.boolean(),
       video: z.boolean(),
     }),
-    text: z.object({ maxLength: z.number() }),
+    /** `maxLinks`: most different links one post may contain (Threads: 5). */
+    text: z.object({ maxLength: z.number(), maxLinks: z.number().optional() }),
     media: platformMediaCapabilitySchema.optional(),
     fields: z.record(z.string(), platformFieldCapabilitySchema).optional(),
     /** Comment automations (comment → DM and/or public reply); `available` on Instagram. */

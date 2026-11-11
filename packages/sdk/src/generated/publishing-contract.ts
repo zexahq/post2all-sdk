@@ -946,6 +946,7 @@ export const PUBLIC_PUBLISHING_CONTRACT = {
         },
         text: {
           maxLength: 500,
+          maxLinks: 5,
         },
         media: {
           maxItems: 20,
