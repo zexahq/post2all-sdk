@@ -355,7 +355,7 @@ const limits = await client.getPublishingLimits(["acc_instagram_123"]);
 
 ## Credit-organization webhooks
 
-Credit workspace owners and admins manage webhook endpoints in the post2all dashboard. The SDK verifies incoming deliveries:
+Workspace owners and admins on any plan with API access manage webhook endpoints in the post2all dashboard; billing events are sent only to credit workspaces. The SDK verifies incoming deliveries:
 
 ```ts
 import { verifyWebhookSignature } from "@post2all/sdk";
